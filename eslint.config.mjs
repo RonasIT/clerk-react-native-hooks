@@ -19,7 +19,7 @@ const compat = new FlatCompat({
 
 export default [
   {
-    ignores: ['**/node_modules', '**/dist', 'eslint.config.mjs', '**/build', '**/coverage'],
+    ignores: ['**/node_modules', '**/dist', 'eslint.config.mjs', 'tsup.config.ts', '**/build', '**/coverage'],
   },
   eslintConfigPrettier,
   {

@@ -1,22 +1,131 @@
-# TypeScript project template
+# @ronas-it/clerk-react-native
 
-A template project for repos with TypeScript NPM packages.
+Hooks and helpers for user authentication with [Clerk Expo SDK](https://clerk.com/docs/references/expo/overview).
 
-## What's included
+## Install
 
-- **Repo structure**: `src/` for source, `dist/` as build output; `.github/workflows/`, `.husky/`, and config files (tsconfig, tsup, ESLint, Prettier) in place.
-- **Build**: TypeScript with [tsup](https://tsup.egoist.dev/) — CJS + ESM output and `.d.ts` from `src/index.ts`.
-- **Lint & format**: ESLint (flat config) and Prettier; `npm run lint`, `npm run format`.
-- **Git hooks**: Husky + lint-staged — ESLint and Prettier on pre-commit.
-- **CI**: GitHub Actions — validate (lint, test, build) on PR/push; release workflow publishes to npm on GitHub release (uses `NPM_TOKEN`).
-- **Basic docs**: [CONTRIBUTING.md](./CONTRIBUTING.md) and [LICENSE](./LICENSE).
+```sh
+npm install @ronas-it/clerk-react-native @clerk/clerk-expo @clerk/types expo-web-browser expo-auth-session
+```
 
-## How to use this template for npm packages
+`react`, `react-native`, and your Clerk/Expo versions should match what `@clerk/clerk-expo` expects for your Expo SDK.
 
-1. Create a new repo from this template (e.g. via GitHub “Use this template”).
-1. **Update `package.json`**: set `name`, `description`, `repository`, `bugs`, `homepage`, and `keywords` for your package.
-1. Run `npm install`
-1. Implement your code in `src/` and run `npm run build` to produce the `dist/` output.
-1. Publish with `npm run release` when ready.
+## API
 
-See more details on how to run releases in [CONTRIBUTING.md](./CONTRIBUTING.md)
+### `useClerkResources`
+
+Hook, that provides access to essential Clerk methods and objects.
+
+Returned object:
+
+- `signUp` — [SignUp](https://clerk.com/docs/references/javascript/sign-up)
+- `signIn` — [SignIn](https://clerk.com/docs/references/javascript/sign-in)
+- `setActive` — sets the active session
+- `signOut` — signs out the current user
+
+### `useAuthWithIdentifier`
+
+Hook, that provides functionality to handle user sign-up and sign-in processes using an identifier such as an email, phone number, or username. It supports both OTP (One Time Password) and password-based authentication methods.
+
+Parameters:
+
+- `method`: type of identifier (`'emailAddress'`, `'phoneNumber'`, `'username'`)
+- `verifyBy`: `'otp'` or `'password'`
+
+Returned object:
+
+- `startSignUp`, `startSignIn`, `startAuthorization`, `isLoading`
+- For email/phone + OTP: `verifyCode`, `isVerifying` (`verifyCode` requires `code`, `isSignUp`, optional `tokenTemplate`)
+
+**Example:**
+
+```ts
+import React, { useState } from 'react';
+import { View, TextInput, Button } from 'react-native';
+import { useAuthWithIdentifier } from '@ronas-it/clerk-react-native';
+
+export const AuthWithIdentifierComponent = () => {
+  const [identifier, setIdentifier] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const { startSignUp, verifyCode, isLoading, isVerifying } = useAuthWithIdentifier('emailAddress', 'otp');
+
+  const handleSignUp = async () => {
+    await startSignUp({ identifier });
+  };
+
+  const handleVerifyCode = async () => {
+    const result = await verifyCode({ code: verificationCode, isSignUp: true });
+    console.log(result.sessionToken);
+  };
+
+  return (
+    <View>
+      <TextInput
+        placeholder="Enter your email"
+        value={identifier}
+        onChangeText={setIdentifier}
+        keyboardType="email-address"
+      />
+      <TextInput
+        placeholder="Enter verification code"
+        value={verificationCode}
+        onChangeText={setVerificationCode}
+      />
+      <Button onPress={handleSignUp} title="Sign Up" disabled={isLoading || isVerifying} />
+      <Button onPress={handleVerifyCode} title="Verify code" disabled={isLoading || isVerifying} />
+    </View>
+  );
+};
+```
+
+### `useAuthWithSSO`
+
+Hook for [SSO](https://clerk.com/docs/references/expo/use-sso) flows.
+
+- `startSSOFlow` — `strategy`, `redirectUrl`, optional `tokenTemplate`
+- `isLoading`
+
+### `useAuthWithTicket`
+
+Ticket-based auth (token from Backend API).
+
+- `startAuthorization` — `ticket`, optional `tokenTemplate`
+- `isLoading`
+
+### `useGetSessionToken`
+
+- `getSessionToken` — optional [token template](https://clerk.com/docs/backend-requests/jwt-templates)
+
+### `useAddIdentifier`
+
+Add email or phone identifiers and verify with codes.
+
+- `createIdentifier`, `verifyCode`, `isCreating`, `isVerifying`
+
+### `useUpdateIdentifier`
+
+Update primary email or phone: add and verify new identifier, then set primary and remove old.
+
+- `createIdentifier`, `verifyCode`, `isCreating`, `isVerifying`, `isUpdating`
+
+### `useOtpVerification`
+
+Lower-level OTP send/verify for sign-in and sign-up.
+
+- `sendOtpCode`, `verifyCode`, `isVerifying`
+
+### `useResetPassword`
+
+Password reset via email or phone OTP.
+
+- `startResetPassword`, `verifyCode`, `resetPassword`, `isCodeSending`, `isResetting`, `isVerifying`
+
+### `useChangePassword`
+
+Update the signed-in user's password (`currentPassword`, `newPassword`).
+
+- `updatePassword`, `isPasswordUpdating`
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
