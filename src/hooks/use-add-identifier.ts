@@ -22,6 +22,10 @@ export function useAddIdentifier(type: IdentifierType): UseAddIdentifierReturn {
   const isEmail = type === 'email';
 
   const createIdentifier: UseAddIdentifierReturn['createIdentifier'] = async ({ identifier }) => {
+    if (!user) {
+      return { isSuccess: false, user };
+    }
+
     setIsCreating(true);
 
     try {
@@ -31,10 +35,10 @@ export function useAddIdentifier(type: IdentifierType): UseAddIdentifierReturn {
       // so skip the creation step and go to the send verification code flow.
       if (!resource) {
         resource = isEmail
-          ? await user?.createEmailAddress({ email: identifier })
-          : await user?.createPhoneNumber({ phoneNumber: identifier });
+          ? await user.createEmailAddress({ email: identifier })
+          : await user.createPhoneNumber({ phoneNumber: identifier });
 
-        await user?.reload();
+        await user.reload();
       }
       await prepareVerification({ isEmail, identifier });
 
@@ -51,6 +55,10 @@ export function useAddIdentifier(type: IdentifierType): UseAddIdentifierReturn {
   };
 
   const verifyCode: UseAddIdentifierReturn['verifyCode'] = async ({ code, identifier }) => {
+    if (!user) {
+      return { isSuccess: false, user };
+    }
+
     setIsVerifying(true);
 
     try {
@@ -87,8 +95,8 @@ export function useAddIdentifier(type: IdentifierType): UseAddIdentifierReturn {
 
   const getIdentifierResource = (identifier: string): EmailAddressResource | PhoneNumberResource | undefined => {
     return isEmail
-      ? user?.emailAddresses.find((a) => a.emailAddress === identifier)
-      : user?.phoneNumbers.find((a) => a.phoneNumber === identifier);
+      ? user?.emailAddresses?.find((a) => a.emailAddress === identifier)
+      : user?.phoneNumbers?.find((a) => a.phoneNumber === identifier);
   };
 
   return { createIdentifier, verifyCode, isCreating, isVerifying };

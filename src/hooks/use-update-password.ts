@@ -18,12 +18,16 @@ export const useChangePassword = (): UseUpdatePasswordReturn => {
   const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
 
   const updatePassword: UseUpdatePasswordReturn['updatePassword'] = async (params) => {
+    if (!user) {
+      return { isSuccess: false, user };
+    }
+
     const { newPassword, currentPassword } = params;
 
     try {
       setIsPasswordUpdating(true);
 
-      await user?.updatePassword({ newPassword, currentPassword });
+      await user.updatePassword({ newPassword, currentPassword });
 
       return { isSuccess: true };
     } catch (error) {

@@ -28,10 +28,14 @@ export function useResetPassword({ method }: { method: OtpMethod }): UseResetPas
   const strategy = method === 'emailAddress' ? 'reset_password_email_code' : 'reset_password_phone_code';
 
   const startResetPassword: UseResetPasswordReturn['startResetPassword'] = async ({ identifier }) => {
+    if (!signIn) {
+      return { isSuccess: false, signIn };
+    }
+
     setIsCodeSending(true);
 
     try {
-      await signIn?.create({
+      await signIn.create({
         strategy,
         identifier,
       });
@@ -45,6 +49,10 @@ export function useResetPassword({ method }: { method: OtpMethod }): UseResetPas
   };
 
   const verifyCode: UseResetPasswordReturn['verifyCode'] = async ({ code }) => {
+    if (!signIn) {
+      return { isSuccess: false, signIn };
+    }
+
     setIsVerifying(true);
 
     try {
@@ -62,10 +70,14 @@ export function useResetPassword({ method }: { method: OtpMethod }): UseResetPas
   };
 
   const resetPassword: UseResetPasswordReturn['resetPassword'] = async ({ password, tokenTemplate }) => {
+    if (!signIn) {
+      return { isSuccess: false, signIn };
+    }
+
     setIsResetting(true);
 
     try {
-      const result = await signIn?.resetPassword({
+      const result = await signIn.resetPassword({
         password,
       });
 
