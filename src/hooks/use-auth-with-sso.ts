@@ -29,7 +29,7 @@ export function useAuthWithSSO(): UseAuthWithSSOReturn {
       });
 
       if (!createdSessionId) {
-        return { sessionToken: null };
+        return { sessionToken: null, signIn, signUp };
       }
 
       await setActive?.({ session: createdSessionId });

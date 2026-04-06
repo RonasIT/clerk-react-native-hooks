@@ -8,7 +8,7 @@ import { useGetSessionToken } from './use-get-session-token';
  * Hook that provides functionality for managing OTP (One Time Password) verification in user authentication workflows, supporting both sign-up and sign-in processes.
  *
  * @returns {UseOtpVerificationReturn} Object containing:
- * - `sendOtpCode` - Sends an OTP code to the user's identifier (email or phone number) based on the specified strategy
+ * - `sendOtpCode` - `sendOtpCode` - Sends an OTP code to the user's identifier (email or phone number) based on the specified strategy; resolves to `{ isSuccess, signIn?, signUp?, error? }`
  * - `verifyCode` - Verifies the OTP code provided by the user, completing the authentication process
  * - `isVerifying` - A boolean indicating whether a verification attempt is currently in progress
  */
@@ -34,15 +34,23 @@ export function useOtpVerification(): UseOtpVerificationReturn {
   };
 
   const sendSignUpOtpCode = async (strategy: OtpStrategy): Promise<void> => {
-    if (!signUp) return;
+    if (!signUp) {
+      throw new Error('Sign up is not available');
+    }
     await signUp.prepareVerification({ strategy });
   };
 
   const sendOtpCode: UseOtpVerificationReturn['sendOtpCode'] = async ({ strategy, isSignUp, isSecondFactor }) => {
-    if (isSignUp) {
-      await sendSignUpOtpCode(strategy);
-    } else {
-      await sendSignInOtpCode(strategy, !!isSecondFactor);
+    try {
+      if (isSignUp) {
+        await sendSignUpOtpCode(strategy);
+      } else {
+        await sendSignInOtpCode(strategy, !!isSecondFactor);
+      }
+
+      return { isSuccess: true, signIn, signUp };
+    } catch (error) {
+      return { isSuccess: false, error, signIn, signUp };
     }
   };
 

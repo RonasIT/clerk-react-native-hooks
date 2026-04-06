@@ -168,6 +168,9 @@ export interface UseAuthWithSSOReturn {
 
 // #region --- OTP VERIFICATION ---
 
+/** Result of requesting an OTP code (before the user submits the code). */
+export type SendOtpCodeReturn = (BaseSuccessReturn | BaseFailureReturn) & WithClerkReturn;
+
 /** Provides functionality for sending and verifying OTP (one-time password) codes using email or phone. */
 export interface UseOtpVerificationReturn {
   /**
@@ -180,9 +183,13 @@ export interface UseOtpVerificationReturn {
    * @param isSignUp - Indicates whether the OTP flow is used for sign-up (true) or sign-in (false)
    * @param isSecondFactor - (Optional) Indicates whether the OTP flow is used for a second factor verification (true) or not (false)
    *
-   * @returns A Promise that resolves once the OTP has been successfully sent, or rejects if sending fails.
+   * @returns A Promise resolving to success with optional `signIn` / `signUp`, or failure with `error` and the same optional resources.
    */
-  sendOtpCode: (params: { strategy: OtpStrategy; isSignUp: boolean; isSecondFactor?: boolean }) => Promise<void>;
+  sendOtpCode: (params: {
+    strategy: OtpStrategy;
+    isSignUp: boolean;
+    isSecondFactor?: boolean;
+  }) => Promise<SendOtpCodeReturn>;
 
   /**
    * Verifies the OTP code entered by the user.

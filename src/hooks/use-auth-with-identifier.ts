@@ -81,8 +81,9 @@ export function useAuthWithIdentifier<
   ): Promise<StartSignInWithIdentifierReturn<TVerifyBy> | StartSignUpWithIdentifierReturn<TMethod>> => {
     const { identifier, password, tokenTemplate } = params;
     const authMethod = isSignUp ? signUp : signIn;
+    const authPayload = isSignUp ? { username: identifier, password } : { identifier, password };
 
-    const authAttempt = await authMethod?.create({ username: identifier, password });
+    const authAttempt = await authMethod?.create(authPayload);
 
     if (authAttempt?.status === 'complete' && 'createdSessionId' in authAttempt) {
       return handleSignInWithPassword(authAttempt as SignInResource, isSignUp, tokenTemplate);
@@ -118,7 +119,11 @@ export function useAuthWithIdentifier<
     } else if (verifyBy === 'otp') {
       try {
         await authMethod?.create({ [identifierFieldName]: identifier });
-        await sendOtpCode({ strategy, isSignUp });
+        const { isSuccess, error } = await sendOtpCode({ strategy, isSignUp });
+
+        return { isSuccess, error, signIn, signUp } as
+          | StartSignInWithIdentifierReturn<TVerifyBy>
+          | StartSignUpWithIdentifierReturn<TMethod>;
       } catch (error) {
         return { error, signIn, signUp };
       }
