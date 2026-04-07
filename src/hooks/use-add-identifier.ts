@@ -45,7 +45,7 @@ export function useAddIdentifier(type: IdentifierType): UseAddIdentifierReturn {
       return { isSuccess: true, user };
     } catch (e) {
       if (isClerkAPIResponseError(e)) {
-        return { error: e, user };
+        return { error: e, user, isSuccess: false };
       }
 
       return { isSuccess: false, user };
@@ -72,7 +72,7 @@ export function useAddIdentifier(type: IdentifierType): UseAddIdentifierReturn {
         return { isSuccess: false, verifyAttempt };
       }
     } catch (error) {
-      return { error, user };
+      return { error, user, isSuccess: false };
     } finally {
       setIsVerifying(false);
     }
@@ -85,18 +85,23 @@ export function useAddIdentifier(type: IdentifierType): UseAddIdentifierReturn {
     identifier: string;
     isEmail: boolean;
   }): Promise<void> => {
-    const phoneResource = user?.phoneNumbers?.find((a) => a.phoneNumber === identifier);
-    const emailResource = user?.emailAddresses?.find((a) => a.emailAddress === identifier);
+    const resource = getIdentifierResource(identifier);
 
     await (isEmail
-      ? emailResource?.prepareVerification({ strategy: 'email_code' })
-      : phoneResource?.prepareVerification());
+      ? resource?.prepareVerification({ strategy: 'email_code' })
+      : (resource as PhoneNumberResource)?.prepareVerification());
   };
 
   const getIdentifierResource = (identifier: string): EmailAddressResource | PhoneNumberResource | undefined => {
-    return isEmail
+    const resource = isEmail
       ? user?.emailAddresses?.find((a) => a.emailAddress === identifier)
       : user?.phoneNumbers?.find((a) => a.phoneNumber === identifier);
+
+    if (!resource) {
+      throw new Error(`No resource found for identifier: ${identifier}`);
+    }
+
+    return resource;
   };
 
   return { createIdentifier, verifyCode, isCreating, isVerifying };

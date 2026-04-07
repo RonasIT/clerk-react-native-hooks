@@ -47,6 +47,10 @@ export function useUpdateIdentifier(type: IdentifierType): UseUpdateIdentifierRe
   };
 
   const swapPrimaryIdentifier = async (identifier: string): Promise<void> => {
+    if (!user) {
+      throw new Error('User not found');
+    }
+
     const newResource = getIdentifierResource(identifier);
 
     if (!newResource || newResource.verification?.status !== 'verified') {

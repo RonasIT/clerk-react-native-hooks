@@ -55,7 +55,7 @@ export function useAuthWithIdentifier<
     isSignUp: boolean,
     tokenTemplate?: string,
   ): Promise<StartSignInWithIdentifierReturn<TVerifyBy> | StartSignUpWithIdentifierReturn<TMethod>> => {
-    await setActive?.({ session: signInAttempt.createdSessionId });
+    await setActive({ session: signInAttempt.createdSessionId });
     const { sessionToken, error } = await handleSessionToken(tokenTemplate);
 
     if (isSignUp) {

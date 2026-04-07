@@ -13,7 +13,7 @@ import { UseUpdatePasswordReturn } from '../types';
  * - `updatePassword` — Updates the user's password using current and new password
  * - `isPasswordUpdating` — Indicates whether a password update is currently in progress
  */
-export const useChangePassword = (): UseUpdatePasswordReturn => {
+export const useUpdatePassword = (): UseUpdatePasswordReturn => {
   const { user } = useUser();
   const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
 

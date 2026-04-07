@@ -24,10 +24,14 @@ export function useOtpVerification(): UseOtpVerificationReturn {
       (factor): factor is EmailCodeFactor | PhoneCodeFactor => factor.strategy === strategy,
     );
 
+    if (!prepareFactor) {
+      throw new Error(`No ${isSecondFactor ? 'second ' : ''}factor preparation for strategy: ${strategy}`);
+    }
+
     if (codeFactor && 'emailAddressId' in codeFactor) {
-      await prepareFactor?.({ strategy: 'email_code', emailAddressId: codeFactor.emailAddressId });
+      await prepareFactor({ strategy: 'email_code', emailAddressId: codeFactor.emailAddressId });
     } else if (codeFactor && 'phoneNumberId' in codeFactor) {
-      await prepareFactor?.({ strategy: 'phone_code', phoneNumberId: codeFactor.phoneNumberId });
+      await prepareFactor({ strategy: 'phone_code', phoneNumberId: codeFactor.phoneNumberId });
     } else {
       throw new Error(`No ${isSecondFactor ? 'second ' : ''}factor found for strategy: ${strategy}`);
     }
@@ -96,13 +100,13 @@ export function useOtpVerification(): UseOtpVerificationReturn {
 
         if (completeSignIn?.status === 'complete') {
           await setActive?.({ session: completeSignIn.createdSessionId });
-          const sessionToken = (await getSessionToken({ tokenTemplate })).sessionToken;
+          const { sessionToken, error } = await getSessionToken({ tokenTemplate });
 
           if (sessionToken) {
             return { sessionToken, signIn, signUp, isSuccess: true };
           }
 
-          return { sessionToken: null, signIn, signUp, isSuccess: false };
+          return { sessionToken: null, signIn, signUp, isSuccess: false, error };
         }
       }
 
