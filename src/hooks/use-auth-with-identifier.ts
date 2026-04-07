@@ -107,13 +107,12 @@ export function useAuthWithIdentifier<
     params: StartAuthParams<TVerifyBy> | StartSignUpParams<TVerifyBy>,
     isSignUp: boolean,
   ): Promise<StartSignInWithIdentifierReturn<TVerifyBy> | StartSignUpWithIdentifierReturn<TMethod>> => {
-    const { identifier, ...restParams } = params;
     const authMethod = isSignUp ? signUp : signIn;
     const identifierFieldName = isSignUp ? method : 'identifier';
 
     if (verifyBy === 'password') {
       try {
-        const { password, tokenTemplate } = params as StartAuthParams<'password'>;
+        const { password, tokenTemplate, identifier, ...restParams } = params as StartAuthParams<'password'>;
         const authAttempt = await authMethod?.create({ [identifierFieldName]: identifier, password, ...restParams });
 
         if (authAttempt?.status === 'complete' && 'createdSessionId' in authAttempt) {
@@ -125,6 +124,8 @@ export function useAuthWithIdentifier<
         return { error, signIn, signUp };
       }
     } else if (verifyBy === 'otp') {
+      const { identifier, ...restParams } = params;
+
       try {
         await authMethod?.create({ [identifierFieldName]: identifier, ...restParams });
         const { isSuccess, error } = await sendOtpCode({ strategy, isSignUp });
