@@ -75,13 +75,18 @@ export function useAuthWithIdentifier<
     } as StartSignInWithIdentifierReturn<TVerifyBy>;
   };
 
-  const handleUsernameAuth = async (
-    params: StartAuthParams<'password'>,
+  const handleUsernameAuth: {
+    (params: StartSignUpParams<TVerifyBy>, isSignUp: true): Promise<StartSignUpWithIdentifierReturn<TMethod>>;
+    (params: StartAuthParams<TVerifyBy>, isSignUp: false): Promise<StartSignInWithIdentifierReturn<TVerifyBy>>;
+  } = async (
+    params: StartAuthParams<TVerifyBy> | StartSignUpParams<TVerifyBy>,
     isSignUp: boolean,
   ): Promise<StartSignInWithIdentifierReturn<TVerifyBy> | StartSignUpWithIdentifierReturn<TMethod>> => {
-    const { identifier, password, tokenTemplate } = params;
+    const { identifier, password, tokenTemplate, ...restParams } = params as StartAuthParams<'password'>;
     const authMethod = isSignUp ? signUp : signIn;
-    const authPayload = isSignUp ? { username: identifier, password } : { identifier, password };
+    const authPayload = isSignUp
+      ? { username: identifier, password, ...restParams }
+      : { identifier, password, ...restParams };
 
     const authAttempt = await authMethod?.create(authPayload);
 
@@ -95,18 +100,21 @@ export function useAuthWithIdentifier<
     } as StartSignInWithIdentifierReturn<TVerifyBy> | StartSignUpWithIdentifierReturn<TMethod>;
   };
 
-  const handleEmailPhoneAuth = async (
-    params: StartAuthParams<TVerifyBy>,
+  const handleEmailPhoneAuth: {
+    (params: StartSignUpParams<TVerifyBy>, isSignUp: true): Promise<StartSignUpWithIdentifierReturn<TMethod>>;
+    (params: StartAuthParams<TVerifyBy>, isSignUp: false): Promise<StartSignInWithIdentifierReturn<TVerifyBy>>;
+  } = async (
+    params: StartAuthParams<TVerifyBy> | StartSignUpParams<TVerifyBy>,
     isSignUp: boolean,
   ): Promise<StartSignInWithIdentifierReturn<TVerifyBy> | StartSignUpWithIdentifierReturn<TMethod>> => {
-    const { identifier } = params;
+    const { identifier, ...restParams } = params;
     const authMethod = isSignUp ? signUp : signIn;
     const identifierFieldName = isSignUp ? method : 'identifier';
 
     if (verifyBy === 'password') {
       try {
         const { password, tokenTemplate } = params as StartAuthParams<'password'>;
-        const authAttempt = await authMethod?.create({ [identifierFieldName]: identifier, password });
+        const authAttempt = await authMethod?.create({ [identifierFieldName]: identifier, password, ...restParams });
 
         if (authAttempt?.status === 'complete' && 'createdSessionId' in authAttempt) {
           return handleSignInWithPassword(authAttempt as SignInResource, isSignUp, tokenTemplate);
@@ -118,7 +126,7 @@ export function useAuthWithIdentifier<
       }
     } else if (verifyBy === 'otp') {
       try {
-        await authMethod?.create({ [identifierFieldName]: identifier });
+        await authMethod?.create({ [identifierFieldName]: identifier, ...restParams });
         const { isSuccess, error } = await sendOtpCode({ strategy, isSignUp });
 
         return { isSuccess, error, signIn, signUp } as
@@ -139,9 +147,7 @@ export function useAuthWithIdentifier<
     try {
       setIsLoading(true);
 
-      return method === 'username'
-        ? await handleUsernameAuth(params as StartAuthParams<'password'>, true)
-        : await handleEmailPhoneAuth(params, true);
+      return method === 'username' ? await handleUsernameAuth(params, true) : await handleEmailPhoneAuth(params, true);
     } catch (error) {
       return { error, signUp, isSuccess: false } as StartSignUpWithIdentifierReturn<TMethod>;
     } finally {
@@ -154,7 +160,7 @@ export function useAuthWithIdentifier<
       setIsLoading(true);
 
       return method === 'username'
-        ? await handleUsernameAuth(params as StartAuthParams<'password'>, false)
+        ? await handleUsernameAuth(params, false)
         : await handleEmailPhoneAuth(params, false);
     } catch (error) {
       return { error, signIn, isSuccess: false } as StartSignInWithIdentifierReturn<TVerifyBy>;

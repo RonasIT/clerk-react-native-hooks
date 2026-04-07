@@ -64,6 +64,10 @@ export function useAddIdentifier(type: IdentifierType): UseAddIdentifierReturn {
     try {
       const resource = getIdentifierResource(identifier);
 
+      if (!resource) {
+        return { isSuccess: false, user };
+      }
+
       const verifyAttempt = await resource?.attemptVerification({ code });
 
       if (verifyAttempt?.verification?.status === 'verified') {
@@ -87,21 +91,19 @@ export function useAddIdentifier(type: IdentifierType): UseAddIdentifierReturn {
   }): Promise<void> => {
     const resource = getIdentifierResource(identifier);
 
+    if (!resource) {
+      throw new Error(`No resource found for identifier: ${identifier}`);
+    }
+
     await (isEmail
       ? resource?.prepareVerification({ strategy: 'email_code' })
       : (resource as PhoneNumberResource)?.prepareVerification());
   };
 
   const getIdentifierResource = (identifier: string): EmailAddressResource | PhoneNumberResource | undefined => {
-    const resource = isEmail
+    return isEmail
       ? user?.emailAddresses?.find((a) => a.emailAddress === identifier)
       : user?.phoneNumbers?.find((a) => a.phoneNumber === identifier);
-
-    if (!resource) {
-      throw new Error(`No resource found for identifier: ${identifier}`);
-    }
-
-    return resource;
   };
 
   return { createIdentifier, verifyCode, isCreating, isVerifying };
