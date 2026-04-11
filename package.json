@@ -1,7 +1,7 @@
 {
-  "name": "@ronas-it/your-package-name",
+  "name": "@ronas-it/clerk-react-native",
   "version": "0.0.0",
-  "description": "Your package description",
+  "description": "Hooks and helpers for Clerk authentication in React Native / Expo apps",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -17,20 +17,38 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RonasIT/your-package-name.git"
+    "url": "git+https://github.com/RonasIT/clerk-react-native.git"
   },
-  "keywords": [],
+  "keywords": [
+    "clerk",
+    "react-native",
+    "expo",
+    "authentication",
+    "sso",
+    "otp"
+  ],
   "author": "Ronas IT",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/RonasIT/your-package-name/issues"
+    "url": "https://github.com/RonasIT/clerk-react-native/issues"
   },
-  "homepage": "https://github.com/RonasIT/your-package-name#readme",
+  "homepage": "https://github.com/RonasIT/clerk-react-native#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@clerk/clerk-expo": "^2.19.18",
+    "@clerk/types": "^4.101.11",
+    "react": "^18.0.0 || ^19.0.0"
+  },
   "devDependencies": {
+    "@clerk/clerk-expo": "^2.19.18",
+    "@clerk/types": "^4.101.11",
     "@eslint/compat": "^1.2.5",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
     "@stylistic/eslint-plugin": "^2.13.0",
+    "@types/react": "~19.1.10",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-import-resolver-typescript": "^3.7.0",
@@ -39,6 +57,9 @@
     "husky": "^9.1.7",
     "lint-staged": "^15.4.1",
     "prettier": "^3.4.2",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.4",
     "tsup": "^8.3.5",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
@@ -46,6 +67,5 @@
   "lint-staged": {
     "*.{js,ts}": "eslint --cache --fix",
     "*.{js,ts,css,md}": "prettier --write"
-  },
-  "dependencies": {}
+  }
 }
