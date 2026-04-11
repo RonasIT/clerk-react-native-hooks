@@ -1,5 +1,5 @@
 {
-  "name": "@ronas-it/clerk-react-native",
+  "name": "@ronas-it/clerk-react-native-hooks",
   "version": "0.0.0",
   "description": "Hooks and helpers for Clerk authentication in React Native / Expo apps",
   "main": "./dist/index.js",
@@ -17,7 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RonasIT/clerk-react-native.git"
+    "url": "git+https://github.com/RonasIT/clerk-react-native-hooks.git"
   },
   "keywords": [
     "clerk",
@@ -30,9 +30,9 @@
   "author": "Ronas IT",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/RonasIT/clerk-react-native/issues"
+    "url": "https://github.com/RonasIT/clerk-react-native-hooks/issues"
   },
-  "homepage": "https://github.com/RonasIT/clerk-react-native#readme",
+  "homepage": "https://github.com/RonasIT/clerk-react-native-hooks#readme",
   "publishConfig": {
     "access": "public"
   },

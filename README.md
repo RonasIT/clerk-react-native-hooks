@@ -1,11 +1,11 @@
-# @ronas-it/clerk-react-native
+# @ronas-it/clerk-react-native-hooks
 
 Hooks and helpers for user authentication with [Clerk Expo SDK](https://clerk.com/docs/references/expo/overview).
 
 ## Install
 
 ```sh
-npm install @ronas-it/clerk-react-native @clerk/clerk-expo @clerk/types expo-web-browser expo-auth-session
+npm install @ronas-it/clerk-react-native-hooks @clerk/clerk-expo @clerk/types expo-web-browser expo-auth-session
 ```
 
 `react`, `react-native`, and your Clerk/Expo versions should match what `@clerk/clerk-expo` expects for your Expo SDK.
@@ -42,7 +42,7 @@ Returned object:
 ```ts
 import React, { useState } from 'react';
 import { View, TextInput, Button } from 'react-native';
-import { useAuthWithIdentifier } from '@ronas-it/clerk-react-native';
+import { useAuthWithIdentifier } from '@ronas-it/clerk-react-native-hooks';
 
 export const AuthWithIdentifierComponent = () => {
   const [identifier, setIdentifier] = useState('');
