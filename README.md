@@ -36,47 +36,90 @@ Returned object:
 
 - `startSignUp`, `startSignIn`, `startAuthorization`, `isLoading`
 - For email/phone + OTP: `verifyCode`, `isVerifying` (`verifyCode` requires `code`, `isSignUp`, optional `tokenTemplate`)
+- `startAuthorization` (email/phone + OTP): on success, includes `isSignUp` — `true` if the flow started as a new sign-up, `false` if the identifier already existed and sign-in was used instead
 
-**Example:**
+### Examples
+
+#### Passwordless sign-up and sign-in
 
 ```ts
-import React, { useState } from 'react';
-import { View, TextInput, Button } from 'react-native';
-import { useAuthWithIdentifier } from '@ronas-it/clerk-react-native-hooks';
+const { startSignUp, startSignIn, verifyCode } = useAuthWithIdentifier('emailAddress', 'otp');
+// useAuthWithIdentifier('phoneNumber', 'otp') for SMS
 
-export const AuthWithIdentifierComponent = () => {
-  const [identifier, setIdentifier] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const { startSignUp, verifyCode, isLoading, isVerifying } = useAuthWithIdentifier('emailAddress', 'otp');
+await startSignUp({ identifier }); // new user
+await verifyCode({ code, isSignUp: true, tokenTemplate });
 
-  const handleSignUp = async () => {
-    await startSignUp({ identifier });
-  };
+await startSignIn({ identifier }); // existing user
+await verifyCode({ code, isSignUp: false, tokenTemplate });
+```
 
-  const handleVerifyCode = async () => {
-    const result = await verifyCode({ code: verificationCode, isSignUp: true });
-    console.log(result.sessionToken);
-  };
+#### Password-based sign-up and sign-in
 
-  return (
-    <View>
-      <TextInput
-        placeholder="Enter your email"
-        value={identifier}
-        onChangeText={setIdentifier}
-        keyboardType="email-address"
-      />
-      <TextInput
-        placeholder="Enter verification code"
-        value={verificationCode}
-        onChangeText={setVerificationCode}
-      />
-      <Button onPress={handleSignUp} title="Sign Up" disabled={isLoading || isVerifying} />
-      <Button onPress={handleVerifyCode} title="Verify code" disabled={isLoading || isVerifying} />
-    </View>
-  );
+**SignUp** can collect a password and profile data; the address is still confirmed with a one-time code on the next step (`'otp'`). **SignIn** sign in with email (or phone) and password in one step (`'password'`);
+
+```ts
+// Sign-up: password + profile, then email OTP on another screen
+const { startSignUp, isLoading } = useAuthWithIdentifier('emailAddress', 'otp');
+
+const onSignUp = async (values: { emailAddress: string; password: string; firstName: string; lastName: string }) => {
+  const { isSuccess } = await startSignUp({
+    identifier: values.emailAddress,
+    password: values.password,
+    firstName: values.firstName,
+    lastName: values.lastName,
+  });
+
+  if (isSuccess) {
+    // Navigate to the screen where the user enters the email OTP
+  }
 };
 ```
+
+```ts
+// Sign-in: email and password from the form
+const { startSignIn, isLoading } = useAuthWithIdentifier('emailAddress', 'password');
+
+const onSignIn = async (values: { emailAddress: string; password: string }) => {
+  const { isSuccess, error, sessionToken } = await startSignIn({
+    identifier: values.emailAddress,
+    password: values.password,
+    tokenTemplate: 'your_jwt_template',
+  });
+
+  if (isSuccess) {
+    // Session is active; use sessionToken if you need a custom JWT
+  }
+};
+```
+
+#### Single entry: one email field, then OTP (sign-in or sign-up)
+
+Use this when **sign-in** and **sign-up** share the same entry point with a single identifier (email or phone). Call `startAuthorization`: it attempts sign-up first; if Clerk reports that the identifier already exists, it runs sign-in instead. On success, read `isSignUp` and pass it to the code screen so `verifyCode` (or `useOtpVerification`) knows whether to complete sign-up or sign-in.
+
+```ts
+// First screen — single identifier
+const { startAuthorization, isLoading } = useAuthWithIdentifier('emailAddress', 'otp');
+
+const onContinue = async (email: string) => {
+  const { error, isSignUp, isSuccess } = await startAuthorization({ identifier: email.trim() });
+
+  if (isSuccess) {
+    // Navigate to OTP screen with email and isSignUp: !!isSignUp
+  }
+};
+```
+
+```ts
+// OTP screen — same isSignUp flag from startAuthorization
+const { verifyCode, isVerifying } = useAuthWithIdentifier('emailAddress', 'otp');
+
+const onVerify = async (code: string, isSignUp: boolean) => {
+  const { sessionToken, error } = await verifyCode({ code, isSignUp, tokenTemplate: 'your_jwt_template' });
+  // ...
+};
+```
+
+Alternatively, on the code screen you can use `useOtpVerification` for `verifyCode` / `sendOtpCode` as long as you pass the same `isSignUp` into those calls.
 
 ### `useAuthWithSSO`
 
