@@ -62,7 +62,7 @@ await verifyCode({ code, isSignUp: false, tokenTemplate });
 const { startSignUp, isLoading } = useAuthWithIdentifier('emailAddress', 'otp');
 
 const onSignUp = async (values: { emailAddress: string; password: string; firstName: string; lastName: string }) => {
-  const { isSuccess } = await startSignUp({
+  const { isSuccess, error } = await startSignUp({
     identifier: values.emailAddress,
     password: values.password,
     firstName: values.firstName,
@@ -72,6 +72,10 @@ const onSignUp = async (values: { emailAddress: string; password: string; firstN
   if (isSuccess) {
     // Navigate to the screen where the user enters the email OTP
   }
+
+  if (error) {
+    showToast(error?.longMessage);
+  }
 };
 ```
 
@@ -80,14 +84,18 @@ const onSignUp = async (values: { emailAddress: string; password: string; firstN
 const { startSignIn, isLoading } = useAuthWithIdentifier('emailAddress', 'password');
 
 const onSignIn = async (values: { emailAddress: string; password: string }) => {
-  const { isSuccess, error, sessionToken } = await startSignIn({
+  const { isSuccess, error } = await startSignIn({
     identifier: values.emailAddress,
     password: values.password,
     tokenTemplate: 'your_jwt_template',
   });
 
   if (isSuccess) {
-    // Session is active; use sessionToken if you need a custom JWT
+    // e.g. navigate to your main screen, or call onAuthSuccess / a callback from props
+  }
+
+  if (error) {
+    showToast(error?.longMessage);
   }
 };
 ```
@@ -106,6 +114,10 @@ const onContinue = async (email: string) => {
   if (isSuccess) {
     // Navigate to OTP screen with email and isSignUp: !!isSignUp
   }
+
+  if (error) {
+    showToast(error?.longMessage);
+  }
 };
 ```
 
@@ -114,8 +126,15 @@ const onContinue = async (email: string) => {
 const { verifyCode, isVerifying } = useAuthWithIdentifier('emailAddress', 'otp');
 
 const onVerify = async (code: string, isSignUp: boolean) => {
-  const { sessionToken, error } = await verifyCode({ code, isSignUp, tokenTemplate: 'your_jwt_template' });
-  // ...
+  const { sessionToken, error, isSuccess } = await verifyCode({ code, isSignUp, tokenTemplate: 'your_jwt_template' });
+
+  if (isSuccess) {
+    // e.g. navigate to your main stack, or call onSuccess callback
+  }
+
+  if (error) {
+    showToast(error?.longMessage);
+  }
 };
 ```
 
@@ -128,16 +147,61 @@ Hook for [SSO](https://clerk.com/docs/references/expo/use-sso) flows.
 - `startSSOFlow` — `strategy`, `redirectUrl`, optional `tokenTemplate`
 - `isLoading`
 
+#### Example
+
+```ts
+import * as AuthSession from 'expo-auth-session';
+
+const { startSSOFlow, isLoading } = useAuthWithSSO();
+
+const onGooglePress = async () => {
+  const { isSuccess, sessionToken, error, signIn, signUp } = await startSSOFlow({
+    strategy: 'oauth_google',
+    redirectUrl: AuthSession.makeRedirectUri({ path: navigationConfig.auth.signUp })
+    tokenTemplate: 'your_jwt_template', // optional
+  });
+
+  if (isSuccess) {
+    // e.g. navigate to your main stack, or call onSuccess callback
+  }
+
+   if(error) {
+    showToast(error?.longMessage)
+  }
+};
+```
+
+Use another [`OAuthStrategy`](https://clerk.com/docs/references/javascript/types/oauth#oauth-provider-strategy-values) (for example `oauth_github`) the same way.
+
 ### `useAuthWithTicket`
 
-Ticket-based auth (token from Backend API).
+Ticket-based auth: your **backend** obtains a sign-in token from Clerk ([Backend API / SDK](https://clerk.com/docs/reference/backend/sign-in-tokens/create-sign-in-token)) and exposes it to the app.
 
 - `startAuthorization` — `ticket`, optional `tokenTemplate`
 - `isLoading`
 
-### `useGetSessionToken`
+#### Example
 
-- `getSessionToken` — optional [token template](https://clerk.com/docs/backend-requests/jwt-templates)
+```ts
+const { startAuthorization, isLoading } = useAuthWithTicket();
+
+const signInWithBackendTicket = async () => {
+  const { ticket } = await yourApi.issueClerkSignInToken(); // server calls Clerk, returns the token to the client
+
+  const { error, isSuccess } = await startAuthorization({
+    ticket,
+    tokenTemplate: 'your_jwt_template', // optional
+  });
+
+  if (isSuccess) {
+    // e.g. navigate to your main stack, or call onSuccess callback
+  }
+
+  if (error) {
+    showToast(error?.longMessage);
+  }
+};
+```
 
 ### `useAddIdentifier`
 
@@ -168,6 +232,10 @@ Password reset via email or phone OTP.
 Update the signed-in user's password (`currentPassword`, `newPassword`).
 
 - `updatePassword`, `isPasswordUpdating`
+
+### `useGetSessionToken`
+
+- `getSessionToken` — optional [token template](https://clerk.com/docs/backend-requests/jwt-templates)
 
 ## Contributing
 
