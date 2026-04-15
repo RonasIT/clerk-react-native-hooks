@@ -54,7 +54,7 @@ export type OtpStrategy = 'email_code' | 'phone_code';
 /** Type for extra params during SignUp process */
 export type SignUpParams = Pick<
   SignUpCreateParams,
-  'firstName' | 'lastName' | 'locale' | 'unsafeMetadata' | 'username'
+  'firstName' | 'lastName' | 'locale' | 'unsafeMetadata' | 'username' | 'password'
 >;
 
 // #endregion
