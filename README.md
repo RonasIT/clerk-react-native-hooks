@@ -54,9 +54,11 @@ await startSignIn({ identifier }); // existing user
 await verifyCode({ code, isSignUp: false, tokenTemplate });
 ```
 
+`tokenTemplate` (optional) is the **name** of a [JWT template](https://clerk.com/docs/guides/sessions/jwt-templates) from the Clerk Dashboard. When set, Clerk issues a JWT built from that template so you control which claims are included. Omit it if you only need the default session token.
+
 #### Password-based sign-up and sign-in
 
-**Sign-up** can collect a password and profile data; the address is still confirmed with a one-time code on the next step (`'otp'`). **Sign-in** uses email (or phone) and password in one step (`'password'`).
+**Sign-up** can collect a password and profile data; the email (or phone) is still confirmed with a one-time code on the next step (`'otp'`). **Sign-in** uses email (or phone) and password in one step (`'password'`).
 
 ```ts
 // Sign-up: password + profile — OTP screen next (code is sent inside startSignUp when verifyBy is 'otp')
@@ -90,7 +92,7 @@ await sendOtpCode({ strategy: 'email_code', isSignUp: true });
 ```
 
 ```ts
-// Sign-in: email and password from the form
+// Sign-in: email and password
 const { startSignIn, isLoading } = useAuthWithIdentifier('emailAddress', 'password');
 
 const onSignIn = async (values: { emailAddress: string; password: string }) => {
@@ -119,7 +121,7 @@ Use this when **sign-in** and **sign-up** share one identifier field (email or p
 const { startAuthorization, isLoading } = useAuthWithIdentifier('emailAddress', 'otp');
 
 const onContinue = async (email: string) => {
-  const { error, isSignUp, isSuccess } = await startAuthorization({ identifier: email.trim() });
+  const { error, isSignUp, isSuccess } = await startAuthorization({ identifier: email });
 
   if (isSuccess) {
     // go to OTP step with email and isSignUp: !!isSignUp
@@ -181,7 +183,7 @@ const onGooglePress = async () => {
 };
 ```
 
-Use another [`OAuthStrategy`](https://clerk.com/docs/references/javascript/types/oauth#oauth-provider-strategy-values) (for example `oauth_github`) the same way.
+Use another [OAuthStrategy](https://clerk.com/docs/references/javascript/types/oauth#oauth-provider-strategy-values) (for example `oauth_github`) the same way.
 
 ### `useAuthWithTicket`
 
@@ -294,7 +296,7 @@ const onSubmitCode = async (code: string, newEmail: string) => {
 ### `useOtpVerification`
 
 Lower-level OTP send/verify for sign-in and sign-up.
-**`sendOtpCode`** asks Clerk to deliver a code (first send or resend) for **`email_code`** or **`phone_code`**. **`verifyCode`** submits the code, activates the session, and optionally returns a JWT. Use the same **`isSignUp`** on every call (`true` for sign-up, `false` for sign-in).
+`sendOtpCode` asks Clerk to deliver a code (first send or resend) for `email_code` or `phone_code`. `verifyCode` submits the code, activates the session, and optionally returns a JWT. Use the same `isSignUp` on every call (`true` for sign-up, `false` for sign-in).
 
 - `sendOtpCode` — `{ strategy: 'email_code' | 'phone_code', isSignUp, isSecondFactor? }`
 - `verifyCode` — `{ code, strategy, isSignUp, tokenTemplate?, isSecondFactor? }`
@@ -329,11 +331,11 @@ For SMS, use `strategy: 'phone_code'`. For sign-in OTP, set `isSignUp: false` in
 
 Password reset via email or phone OTP for the forgot-password flow.
 
-Use the same **`method`** (`'emailAddress'` or `'phoneNumber'`) on `useResetPassword` for each step.
+Use the same `method` (`'emailAddress'` or `'phoneNumber'`) on `useResetPassword` for each step.
 
-1. **`startResetPassword({ identifier })`** — sends the reset code (`isCodeSending`); repeat to resend.
-2. **`verifyCode({ code })`** — verifies the code (`isVerifying`).
-3. **`resetPassword({ password, tokenTemplate? })`** — applies the new password and finishes sign-in (`isResetting`).
+1. `startResetPassword({ identifier })` — sends the reset code (`isCodeSending`); repeat to resend.
+2. `verifyCode({ code })` — verifies the code (`isVerifying`).
+3. `resetPassword({ password, tokenTemplate? })` — applies the new password and finishes sign-in (`isResetting`).
 
 #### Example
 
@@ -406,13 +408,13 @@ Helper hook when you need to **read the session token** outside the higher-level
 
 - `getSessionToken` — `{ tokenTemplate? }` → `{ isSuccess, sessionToken?, error? }`
 
-## Client Trust / second factor (password sign-in)
+## Client Trust / second factor
 
 [Client Trust](https://clerk.com/docs/guides/secure/client-trust) adds one more verification step after a valid password sign-in:
 
-- **`needs_second_factor`**: the password is correct, but Clerk treats this device as new or untrusted and requires an email/SMS code.
+- `needs_second_factor`: the password is correct, but Clerk treats this device as new or untrusted and requires an email/SMS code.
 
-Handle both statuses the same way: if `startSignIn` returns `isSuccess: false`, check `status`, then call `sendOtpCode` / `verifyCode` with **`isSecondFactor: true`** and **`isSignUp: false`**.
+If `startSignIn` returns `isSuccess: false`, check `status`, then call `sendOtpCode` / `verifyCode` with `isSecondFactor: true` and `isSignUp: false`.
 
 ```ts
 const { startSignIn } = useAuthWithIdentifier('emailAddress', 'password');
