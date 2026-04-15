@@ -59,7 +59,7 @@ await verifyCode({ code, isSignUp: false, tokenTemplate });
 **Sign-up** can collect a password and profile data; the address is still confirmed with a one-time code on the next step (`'otp'`). **Sign-in** uses email (or phone) and password in one step (`'password'`).
 
 ```ts
-// Sign-up: password + profile, then email OTP on another screen
+// Sign-up: password + profile — OTP screen next (code is sent inside startSignUp when verifyBy is 'otp')
 const { startSignUp, isLoading } = useAuthWithIdentifier('emailAddress', 'otp');
 
 const onSignUp = async (values: { emailAddress: string; password: string; firstName: string; lastName: string }) => {
@@ -78,6 +78,15 @@ const onSignUp = async (values: { emailAddress: string; password: string; firstN
     showToast(error?.longMessage);
   }
 };
+```
+
+```ts
+// Same flow but verifyBy: 'password' — send/verify OTP with useOtpVerification (not inside startSignUp)
+const { startSignUp, isLoading } = useAuthWithIdentifier('emailAddress', 'password');
+const { sendOtpCode } = useOtpVerification();
+
+await startSignUp({ identifier: values.emailAddress, password: values.password });
+await sendOtpCode({ strategy: 'email_code', isSignUp: true });
 ```
 
 ```ts
