@@ -41,7 +41,7 @@ Returns:
 
 ### Examples
 
-#### Passwordless sign-up and sign-in
+#### Passwordless sign-up and sign-in:
 
 ```ts
 const { startSignUp, startSignIn, verifyCode } = useAuthWithIdentifier('emailAddress', 'otp');
@@ -56,7 +56,7 @@ await verifyCode({ code, isSignUp: false, tokenTemplate });
 
 `tokenTemplate` (optional) is the **name** of a [JWT template](https://clerk.com/docs/guides/sessions/jwt-templates) from the Clerk Dashboard. When set, Clerk issues a JWT built from that template so you control which claims are included. Omit it if you only need the default session token.
 
-#### Password-based sign-up and sign-in
+#### Password-based sign-up and sign-in:
 
 **Sign-up** can collect a password and profile data; the email (or phone) is still confirmed with a one-time code on the next step (`'otp'`). **Sign-in** uses email (or phone) and password in one step (`'password'`).
 
@@ -112,7 +112,7 @@ const onSignIn = async (values: { emailAddress: string; password: string }) => {
 };
 ```
 
-#### Single entry: one email/phone field, then OTP (sign-in or sign-up)
+#### Single entry: one email/phone field, then OTP (sign-in or sign-up):
 
 Use this when **sign-in** and **sign-up** share one identifier field (email or phone). `startAuthorization` tries sign-up first; if Clerk reports that the identifier already exists, it falls back to sign-in. Pass `isSignUp` to the code screen so `verifyCode` (or `useOtpVerification`) knows which flow to finish.
 
