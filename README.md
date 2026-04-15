@@ -58,8 +58,6 @@ await verifyCode({ code, isSignUp: false, tokenTemplate });
 
 #### Password-based sign-up and sign-in:
 
-**Sign-up** can collect a password and profile data; the email (or phone) is still confirmed with a one-time code on the next step (`'otp'`). **Sign-in** uses email (or phone) and password in one step (`'password'`).
-
 ```ts
 // Sign-up: password + profile — OTP screen next (code is sent inside startSignUp when verifyBy is 'otp')
 const { startSignUp, isLoading } = useAuthWithIdentifier('emailAddress', 'otp');
@@ -114,7 +112,7 @@ const onSignIn = async (values: { emailAddress: string; password: string }) => {
 
 #### Single entry: one email/phone field, then OTP (sign-in or sign-up):
 
-Use this when **sign-in** and **sign-up** share one identifier field (email or phone). `startAuthorization` tries sign-up first; if Clerk reports that the identifier already exists, it falls back to sign-in. Pass `isSignUp` to the code screen so `verifyCode` (or `useOtpVerification`) knows which flow to finish.
+Use this when **sign-in** and **sign-up** share one identifier field (email or phone). `startAuthorization` tries sign-up first; if Clerk reports that the identifier already exists, it falls back to sign-in.
 
 ```ts
 // First screen — single identifier
@@ -226,8 +224,6 @@ Link an extra **email** or **phone** to the **signed-in** user. `createIdentifie
 
 #### Example
 
-Typically two steps (two screens or one wizard): save the address, then enter the code.
-
 ```ts
 // Step 1 — register identifier and trigger email code / SMS
 const { createIdentifier, isCreating } = useAddIdentifier('email');
@@ -264,8 +260,6 @@ For a **signed-in** user who is **changing** their primary email or phone: `crea
 - `isCreating`, `isVerifying`, `isUpdating` (`isUpdating` covers the primary swap + cleanup)
 
 #### Example
-
-Pattern: user submits a **new** email (or phone), then enters the OTP. Loading on the code step should account for `isVerifying || isUpdating`.
 
 ```ts
 // Step 1 — send code to the new address
