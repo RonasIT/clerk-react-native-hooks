@@ -14,9 +14,9 @@ npm install @ronas-it/clerk-react-native-hooks @clerk/clerk-expo @clerk/types ex
 
 ### `useClerkResources`
 
-Hook, that provides access to essential Clerk methods and objects.
+Returns core Clerk resources used by the higher-level hooks.
 
-Returned object:
+Returns:
 
 - `signUp` — [SignUp](https://clerk.com/docs/references/javascript/sign-up)
 - `signIn` — [SignIn](https://clerk.com/docs/references/javascript/sign-in)
@@ -25,18 +25,19 @@ Returned object:
 
 ### `useAuthWithIdentifier`
 
-Hook, that provides functionality to handle user sign-up and sign-in processes using an identifier such as an email, phone number, or username. It supports both OTP (One Time Password) and password-based authentication methods.
+Sign up or sign in with an identifier (`emailAddress`, `phoneNumber`, or `username`) using either OTP or password.
 
 Parameters:
 
-- `method`: type of identifier (`'emailAddress'`, `'phoneNumber'`, `'username'`)
-- `verifyBy`: `'otp'` or `'password'`
+- `method` — `'emailAddress'`, `'phoneNumber'`, or `'username'`
+- `verifyBy` — `'otp'` or `'password'`
 
-Returned object:
+Returns:
 
 - `startSignUp`, `startSignIn`, `startAuthorization`, `isLoading`
-- For email/phone + OTP: `verifyCode`, `isVerifying` (`verifyCode` requires `code`, `isSignUp`, optional `tokenTemplate`)
-- `startAuthorization` (email/phone + OTP): on success, includes `isSignUp` — `true` if the flow started as a new sign-up, `false` if the identifier already existed and sign-in was used instead
+- For email/phone + OTP: `verifyCode`, `isVerifying`
+- `verifyCode` expects `{ code, isSignUp, tokenTemplate? }`
+- `startAuthorization` resolves with `isSignUp`: `true` if the flow continues as sign-up, `false` if the identifier already existed and Clerk switched to sign-in
 
 ### Examples
 
@@ -55,7 +56,7 @@ await verifyCode({ code, isSignUp: false, tokenTemplate });
 
 #### Password-based sign-up and sign-in
 
-**SignUp** can collect a password and profile data; the address is still confirmed with a one-time code on the next step (`'otp'`). **SignIn** sign in with email (or phone) and password in one step (`'password'`);
+**Sign-up** can collect a password and profile data; the address is still confirmed with a one-time code on the next step (`'otp'`). **Sign-in** uses email (or phone) and password in one step (`'password'`).
 
 ```ts
 // Sign-up: password + profile, then email OTP on another screen
@@ -70,7 +71,7 @@ const onSignUp = async (values: { emailAddress: string; password: string; firstN
   });
 
   if (isSuccess) {
-    // Navigate to the screen where the user enters the email OTP
+    // go to the email OTP step
   }
 
   if (error) {
@@ -91,7 +92,7 @@ const onSignIn = async (values: { emailAddress: string; password: string }) => {
   });
 
   if (isSuccess) {
-    // e.g. navigate to your main screen, or call onAuthSuccess / a callback from props
+    // handle success
   }
 
   if (error) {
@@ -100,9 +101,9 @@ const onSignIn = async (values: { emailAddress: string; password: string }) => {
 };
 ```
 
-#### Single entry: one email field, then OTP (sign-in or sign-up)
+#### Single entry: one email/phone field, then OTP (sign-in or sign-up)
 
-Use this when **sign-in** and **sign-up** share the same entry point with a single identifier (email or phone). Call `startAuthorization`: it attempts sign-up first; if Clerk reports that the identifier already exists, it runs sign-in instead. On success, read `isSignUp` and pass it to the code screen so `verifyCode` (or `useOtpVerification`) knows whether to complete sign-up or sign-in.
+Use this when **sign-in** and **sign-up** share one identifier field (email or phone). `startAuthorization` tries sign-up first; if Clerk reports that the identifier already exists, it falls back to sign-in. Pass `isSignUp` to the code screen so `verifyCode` (or `useOtpVerification`) knows which flow to finish.
 
 ```ts
 // First screen — single identifier
@@ -112,7 +113,7 @@ const onContinue = async (email: string) => {
   const { error, isSignUp, isSuccess } = await startAuthorization({ identifier: email.trim() });
 
   if (isSuccess) {
-    // Navigate to OTP screen with email and isSignUp: !!isSignUp
+    // go to OTP step with email and isSignUp: !!isSignUp
   }
 
   if (error) {
@@ -129,7 +130,7 @@ const onVerify = async (code: string, isSignUp: boolean) => {
   const { sessionToken, error, isSuccess } = await verifyCode({ code, isSignUp, tokenTemplate: 'your_jwt_template' });
 
   if (isSuccess) {
-    // e.g. navigate to your main stack, or call onSuccess callback
+    // handle success
   }
 
   if (error) {
@@ -155,18 +156,18 @@ import * as AuthSession from 'expo-auth-session';
 const { startSSOFlow, isLoading } = useAuthWithSSO();
 
 const onGooglePress = async () => {
-  const { isSuccess, sessionToken, error, signIn, signUp } = await startSSOFlow({
+  const { isSuccess, error } = await startSSOFlow({
     strategy: 'oauth_google',
-    redirectUrl: AuthSession.makeRedirectUri({ path: navigationConfig.auth.signUp })
+    redirectUrl: AuthSession.makeRedirectUri({ path: navigationConfig.auth.signUp }),
     tokenTemplate: 'your_jwt_template', // optional
   });
 
   if (isSuccess) {
-    // e.g. navigate to your main stack, or call onSuccess callback
+    // handle success
   }
 
-   if(error) {
-    showToast(error?.longMessage)
+  if (error) {
+    showToast(error?.longMessage);
   }
 };
 ```
@@ -175,7 +176,7 @@ Use another [`OAuthStrategy`](https://clerk.com/docs/references/javascript/types
 
 ### `useAuthWithTicket`
 
-Ticket-based auth: your **backend** obtains a sign-in token from Clerk ([Backend API / SDK](https://clerk.com/docs/reference/backend/sign-in-tokens/create-sign-in-token)) and exposes it to the app.
+Ticket-based auth: your **backend** obtains a sign-in token from Clerk ([Backend API / SDK](https://clerk.com/docs/reference/backend/sign-in-tokens/create-sign-in-token)) and returns it to the app.
 
 - `startAuthorization` — `ticket`, optional `tokenTemplate`
 - `isLoading`
@@ -194,7 +195,7 @@ const signInWithBackendTicket = async () => {
   });
 
   if (isSuccess) {
-    // e.g. navigate to your main stack, or call onSuccess callback
+    // handle success
   }
 
   if (error) {
@@ -205,37 +206,196 @@ const signInWithBackendTicket = async () => {
 
 ### `useAddIdentifier`
 
-Add email or phone identifiers and verify with codes.
+Link an extra **email** or **phone** to the **signed-in** user. `createIdentifier` attaches the value (or resumes verification if it already exists) and sends a one-time code; `verifyCode` confirms with the **same** `identifier` string.
 
-- `createIdentifier`, `verifyCode`, `isCreating`, `isVerifying`
+- `type` — `'email'` or `'phone'`
+- `createIdentifier` — `{ identifier }`
+- `verifyCode` — `{ code, identifier }`
+- `isCreating`, `isVerifying`
+
+#### Example
+
+Typically two steps (two screens or one wizard): save the address, then enter the code.
+
+```ts
+// Step 1 — register identifier and trigger email code / SMS
+const { createIdentifier, isCreating } = useAddIdentifier('email');
+
+const onSaveEmail = async (email: string) => {
+  const { isSuccess, error } = await createIdentifier({ identifier: email });
+
+  if (isSuccess) {
+    // go to verification; keep `email` for step 2
+  }
+};
+```
+
+```ts
+// Step 2 — same `identifier` as in createIdentifier
+const { verifyCode, isVerifying } = useAddIdentifier('email');
+
+const onSubmitCode = async (code: string, email: string) => {
+  const { isSuccess, error } = await verifyCode({ code, identifier: email });
+
+  if (isSuccess) {
+    // handle success
+  }
+};
+```
 
 ### `useUpdateIdentifier`
 
-Update primary email or phone: add and verify new identifier, then set primary and remove old.
+For a **signed-in** user who is **changing** their primary email or phone: `createIdentifier` adds the new address and sends a verification code; after `verifyCode` succeeds, that identifier becomes **primary** and the previous primary is **removed**.
 
-- `createIdentifier`, `verifyCode`, `isCreating`, `isVerifying`, `isUpdating`
+- `type` — `'email'` or `'phone'`
+- `createIdentifier` — `{ identifier }`
+- `verifyCode` — `{ code, identifier }`
+- `isCreating`, `isVerifying`, `isUpdating` (`isUpdating` covers the primary swap + cleanup)
+
+#### Example
+
+Pattern: user submits a **new** email (or phone), then enters the OTP. Loading on the code step should account for `isVerifying || isUpdating`.
+
+```ts
+// Step 1 — send code to the new address
+const { createIdentifier, isCreating } = useUpdateIdentifier('email');
+
+const onSaveNewEmail = async (newEmail: string) => {
+  const { isSuccess, error } = await createIdentifier({ identifier: newEmail });
+
+  if (isSuccess) {
+    // go to verification; keep `newEmail` for step 2
+  }
+};
+```
+
+```ts
+// Step 2 — same `identifier` as in createIdentifier
+const { verifyCode, isVerifying, isUpdating } = useUpdateIdentifier('email');
+
+const onSubmitCode = async (code: string, newEmail: string) => {
+  const { isSuccess, error } = await verifyCode({ code, identifier: newEmail.trim() });
+
+  if (isSuccess) {
+    // handle success
+  }
+};
+```
 
 ### `useOtpVerification`
 
 Lower-level OTP send/verify for sign-in and sign-up.
+**`sendOtpCode`** asks Clerk to deliver a code (first send or resend) for **`email_code`** or **`phone_code`**. **`verifyCode`** submits the code, activates the session, and optionally returns a JWT. Use the same **`isSignUp`** on every call (`true` for sign-up, `false` for sign-in).
 
-- `sendOtpCode`, `verifyCode`, `isVerifying`
+- `sendOtpCode` — `{ strategy: 'email_code' | 'phone_code', isSignUp, isSecondFactor? }`
+- `verifyCode` — `{ code, strategy, isSignUp, tokenTemplate?, isSecondFactor? }`
+- `isVerifying` — true while `verifyCode` is running
+
+#### Example
+
+```ts
+const { verifyCode, isVerifying, sendOtpCode } = useOtpVerification();
+
+const sendOrResendCode = () => {
+  sendOtpCode({ strategy: 'email_code', isSignUp: true });
+};
+
+const onSubmitCode = async (code: string) => {
+  const { isSuccess, error, sessionToken } = await verifyCode({
+    code,
+    strategy: 'email_code',
+    isSignUp: true,
+    tokenTemplate: 'your_jwt_template', // optional
+  });
+
+  if (isSuccess) {
+    // handle success
+  }
+};
+```
+
+For SMS, use `strategy: 'phone_code'`. For sign-in OTP, set `isSignUp: false` in both calls.
 
 ### `useResetPassword`
 
-Password reset via email or phone OTP.
+Password reset via email or phone OTP for the forgot-password flow.
 
-- `startResetPassword`, `verifyCode`, `resetPassword`, `isCodeSending`, `isResetting`, `isVerifying`
+Use the same **`method`** (`'emailAddress'` or `'phoneNumber'`) on `useResetPassword` for each step.
 
-### `useChangePassword`
+1. **`startResetPassword({ identifier })`** — sends the reset code (`isCodeSending`); repeat to resend.
+2. **`verifyCode({ code })`** — verifies the code (`isVerifying`).
+3. **`resetPassword({ password, tokenTemplate? })`** — applies the new password and finishes sign-in (`isResetting`).
 
-Update the signed-in user's password (`currentPassword`, `newPassword`).
+#### Example
 
-- `updatePassword`, `isPasswordUpdating`
+```ts
+// 1 — request code
+const { startResetPassword, isCodeSending } = useResetPassword({ method: 'emailAddress' });
+
+const onRequestCode = async (email: string) => {
+  const { isSuccess, error } = await startResetPassword({ identifier: email });
+  // if isSuccess → go to code step; keep `email` for resend
+};
+```
+
+```ts
+// 2 — submit code (and optional resend)
+const { verifyCode, isVerifying, startResetPassword } = useResetPassword({ method: 'emailAddress' });
+
+const onSubmitCode = async (code: string, email: string) => {
+  const { isSuccess, error } = await verifyCode({ code });
+  // if isSuccess → go to new-password step
+};
+
+const sendOrResendCode = (email: string) => {
+  startResetPassword({ identifier: email });
+};
+```
+
+```ts
+// 3 — new password
+const { resetPassword, isResetting } = useResetPassword({ method: 'emailAddress' });
+
+const onSetNewPassword = async (password: string) => {
+  const { isSuccess, sessionToken, error } = await resetPassword({
+    password,
+    tokenTemplate: 'your_jwt_template', // optional
+  });
+  // if isSuccess → handle success
+};
+```
+
+For SMS, use `{ method: 'phoneNumber' }` and pass the phone number as `identifier`.
+
+### `useUpdatePassword`
+
+Change password for the **signed-in** user using the **current** password and a **new** password, not the forgot-password / OTP flow.
+
+- `updatePassword` — `{ currentPassword, newPassword }` → `{ isSuccess, error? }`
+- `isPasswordUpdating`
+
+#### Example
+
+```ts
+const { updatePassword, isPasswordUpdating } = useUpdatePassword();
+
+const onSubmit = async (values: { currentPassword: string; newPassword: string }) => {
+  const { isSuccess, error } = await updatePassword({
+    currentPassword: values.currentPassword,
+    newPassword: values.newPassword,
+  });
+
+  if (isSuccess) {
+    // handle success
+  }
+};
+```
 
 ### `useGetSessionToken`
 
-- `getSessionToken` — optional [token template](https://clerk.com/docs/backend-requests/jwt-templates)
+Helper hook when you need to **read the session token** outside the higher-level flows.
+
+- `getSessionToken` — `{ tokenTemplate? }` → `{ isSuccess, sessionToken?, error? }`
 
 ## Contributing
 
