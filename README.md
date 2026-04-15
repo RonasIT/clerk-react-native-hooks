@@ -406,6 +406,26 @@ Helper hook when you need to **read the session token** outside the higher-level
 
 - `getSessionToken` — `{ tokenTemplate? }` → `{ isSuccess, sessionToken?, error? }`
 
+## Client Trust / second factor (password sign-in)
+
+[Client Trust](https://clerk.com/docs/guides/secure/client-trust) adds one more verification step after a valid password sign-in:
+
+- **`needs_second_factor`**: the password is correct, but Clerk treats this device as new or untrusted and requires an email/SMS code.
+
+Handle both statuses the same way: if `startSignIn` returns `isSuccess: false`, check `status`, then call `sendOtpCode` / `verifyCode` with **`isSecondFactor: true`** and **`isSignUp: false`**.
+
+```ts
+const { startSignIn } = useAuthWithIdentifier('emailAddress', 'password');
+const { sendOtpCode, verifyCode } = useOtpVerification();
+
+const result = await startSignIn({ identifier, password, tokenTemplate });
+
+if (!result.isSuccess && result.status === 'needs_second_factor') {
+  await sendOtpCode({ strategy: 'email_code', isSignUp: false, isSecondFactor: true });
+  // verifyCode({ code, strategy, isSignUp: false, isSecondFactor: true, tokenTemplate })
+}
+```
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
