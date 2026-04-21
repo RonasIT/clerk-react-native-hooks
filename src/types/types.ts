@@ -31,11 +31,6 @@ type WithSignInReturn = {
   status?: SignInStatus;
 };
 
-type WithLegacySignInReturn = {
-  /** Provides access to legacy SignIn object: https://clerk.com/docs/references/javascript/sign-in */
-  signIn?: SignInResource;
-};
-
 type WithSignUpReturn = {
   /** Provides access to SignInFuture object: hhttps://clerk.com/docs/expo/reference/objects/sign-up-future */
   signUp?: SignUpFutureResource;
@@ -519,7 +514,7 @@ export interface UseResetPasswordReturn {
    */
   startResetPassword: (params: {
     identifier: string;
-  }) => Promise<(BaseSuccessReturn | BaseFailureReturn) & WithLegacySignInReturn>;
+  }) => Promise<(BaseSuccessReturn | BaseFailureReturn) & WithSignInReturn>;
 
   /**
    * Verifies the code sent to the newly added identifier.
@@ -549,10 +544,9 @@ export interface UseResetPasswordReturn {
    * - `sessionToken`: A session token if authentication is completed.
    */
   resetPassword: (params: { password: string; tokenTemplate?: string }) => Promise<
-    (BaseSuccessReturn | BaseFailureReturn) &
-      WithLegacySignInReturn & {
-        sessionToken?: string;
-      }
+    StartSignInReturn & {
+      sessionToken?: string;
+    }
   >;
 
   /** Indicates whether the password reset operation is currently in progress. `true` or `false` */
