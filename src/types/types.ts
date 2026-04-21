@@ -25,19 +25,19 @@ type WithTokenSuccessReturn = BaseSuccessReturn & { sessionToken: string };
 type WithTokenFailureReturn = BaseFailureReturn & { sessionToken?: null };
 
 type WithSignInReturn = {
-  /** Provides access to SignIn object: https://clerk.com/docs/expo/reference/objects/sign-in-future */
+  /** Provides access to SignInFuture object: https://clerk.com/docs/expo/reference/objects/sign-in-future */
   signIn?: SignInFutureResource;
   /** The current status of the sign-in. */
   status?: SignInStatus;
 };
 
 type WithLegacySignInReturn = {
-  /** Provides access to SignIn object: https://clerk.com/docs/references/javascript/sign-in */
+  /** Provides access to legacy SignIn object: https://clerk.com/docs/references/javascript/sign-in */
   signIn?: SignInResource;
 };
 
 type WithSignUpReturn = {
-  /** Provides access to SignUp object: hhttps://clerk.com/docs/expo/reference/objects/sign-up-future */
+  /** Provides access to SignInFuture object: hhttps://clerk.com/docs/expo/reference/objects/sign-up-future */
   signUp?: SignUpFutureResource;
 };
 
@@ -162,9 +162,7 @@ export interface UseAuthWithSSOReturn {
    *
    * `signIn` and `signUp` may be present depending on the outcome and stage of the flow.
    */
-  startSSOFlow: (
-    params: StartSSOArgs,
-  ) => Promise<
+  startSSOFlow: (params: StartSSOArgs) => Promise<
     (WithTokenSuccessReturn | WithTokenFailureReturn) & {
       signIn?: StartSSOFlowReturnType['signIn'];
       signUp?: StartSSOFlowReturnType['signUp'];
