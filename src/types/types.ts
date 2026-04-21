@@ -214,6 +214,7 @@ export interface UseOtpVerificationReturn {
     code: string;
     isSignUp: boolean;
     tokenTemplate?: string;
+    isSecondFactor?: boolean;
   }) => Promise<AuthorizationFinishedReturn>;
 
   /** Indicates whether the OTP verification process is currently in progress. `true` or `false` */

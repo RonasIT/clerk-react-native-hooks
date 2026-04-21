@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { OtpStrategy, UseOtpVerificationReturn } from '../types';
 import { useClerkResources } from './use-clerk-resources';
+import type { SignInFutureResource } from '@clerk/expo/types';
 
 /**
  * Hook that provides functionality for managing OTP (One Time Password) verification in user authentication workflows, supporting both sign-up and sign-in processes.
@@ -16,10 +17,28 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
 
   const isEmailStrategy = strategy === 'email_code';
 
-  const sendOtpCode: UseOtpVerificationReturn['sendOtpCode'] = async ({ isSignUp }) => {
+  type SecondFactorSendResult = Awaited<ReturnType<SignInFutureResource['mfa']['sendEmailCode']>>;
+
+  async function sendSecondFactorOtpCode(): Promise<SecondFactorSendResult | { error: Error }> {
+    const secondFactor = signIn.supportedSecondFactors?.find((factor) => factor.strategy === strategy);
+
+    if (!secondFactor) {
+      throw new Error(`No second factor found for strategy: ${strategy}`);
+    }
+
+    return isEmailStrategy ? signIn.mfa.sendEmailCode() : signIn.mfa.sendPhoneCode();
+  }
+
+  const sendOtpCode: UseOtpVerificationReturn['sendOtpCode'] = async ({ isSignUp, isSecondFactor }) => {
     try {
       if (isSignUp) {
         const { error } = await signUp.verifications[isEmailStrategy ? 'sendEmailCode' : 'sendPhoneCode']();
+
+        if (error) {
+          return { isSuccess: false, error, signIn, signUp };
+        }
+      } else if (isSecondFactor) {
+        const { error } = await sendSecondFactorOtpCode();
 
         if (error) {
           return { isSuccess: false, error, signIn, signUp };
@@ -38,7 +57,12 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
     }
   };
 
-  const verifyCode: UseOtpVerificationReturn['verifyCode'] = async ({ code, tokenTemplate, isSignUp }) => {
+  const verifyCode: UseOtpVerificationReturn['verifyCode'] = async ({
+    code,
+    tokenTemplate,
+    isSignUp,
+    isSecondFactor,
+  }) => {
     try {
       setIsVerifying(true);
       let sessionToken = null;
@@ -85,7 +109,9 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
           }
         }
       } else {
-        const { error: verifyError } = await signIn?.[isEmailStrategy ? 'emailCode' : 'phoneCode'].verifyCode({ code });
+        const { error: verifyError } = isSecondFactor
+          ? await signIn?.mfa[isEmailStrategy ? 'verifyEmailCode' : 'verifyPhoneCode']({ code })
+          : await signIn?.[isEmailStrategy ? 'emailCode' : 'phoneCode'].verifyCode({ code });
 
         if (signIn?.status === 'complete') {
           const { error } = await signIn.finalize({

@@ -15,11 +15,5 @@ export const useClerkResources = (): UseClerkResourcesReturn => {
   const { signIn } = useSignIn();
   const { signOut } = useClerk();
 
-  signIn.create({
-    identifier: 'test@test.com',
-    password: 'password',
-    signUpIfMissing: true,
-  });
-
   return { signUp, signIn, signOut };
 };
