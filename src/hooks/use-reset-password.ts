@@ -1,6 +1,6 @@
+import { useSignIn } from '@clerk/expo/legacy';
 import { useState } from 'react';
 import { OtpMethod, UseResetPasswordReturn } from '../types';
-import { useClerkResources } from './use-clerk-resources';
 import { useGetSessionToken } from './use-get-session-token';
 
 /**
@@ -18,7 +18,7 @@ import { useGetSessionToken } from './use-get-session-token';
  * - `isVerifying` - A boolean indicating whether a verification code is currently being processed
  */
 export function useResetPassword({ method }: { method: OtpMethod }): UseResetPasswordReturn {
-  const { signIn, setActive } = useClerkResources();
+  const { signIn, setActive } = useSignIn();
   const { getSessionToken } = useGetSessionToken();
 
   const [isCodeSending, setIsCodeSending] = useState(false);

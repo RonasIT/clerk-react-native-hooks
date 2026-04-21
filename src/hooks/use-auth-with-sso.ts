@@ -1,7 +1,6 @@
-import { useSSO } from '@clerk/clerk-expo';
+import { useSSO } from '@clerk/expo';
 import { useState } from 'react';
 import { StartSSOArgs, UseAuthWithSSOReturn } from '../types';
-import { useGetSessionToken } from './use-get-session-token';
 
 /**
  * Hook that provides functionality to handle SSO authentication flows.
@@ -12,7 +11,6 @@ import { useGetSessionToken } from './use-get-session-token';
  */
 export function useAuthWithSSO(): UseAuthWithSSOReturn {
   const { startSSOFlow: clerkStartSSOFlow } = useSSO();
-  const { getSessionToken } = useGetSessionToken();
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const startSSOFlow: UseAuthWithSSOReturn['startSSOFlow'] = async ({
@@ -23,25 +21,26 @@ export function useAuthWithSSO(): UseAuthWithSSOReturn {
     try {
       setIsLoading(true);
 
+      let sessionToken: string | null = null;
+
       const { createdSessionId, setActive, signIn, signUp } = await clerkStartSSOFlow({
         strategy,
         redirectUrl,
       });
 
       if (!createdSessionId) {
-        return { sessionToken: null, signIn, signUp, isSuccess: false };
+        return { sessionToken: null, signIn, signUp, isSuccess: false, error: null };
       }
 
-      await setActive?.({ session: createdSessionId });
-      const { sessionToken } = await getSessionToken({ tokenTemplate });
+      await setActive?.({
+        session: createdSessionId,
+        navigate: async ({ session }) => {
+          sessionToken = await session.getToken({ template: tokenTemplate });
+        },
+      });
 
       if (sessionToken) {
-        return {
-          sessionToken,
-          signIn,
-          signUp,
-          isSuccess: true,
-        };
+        return { sessionToken, signIn, signUp, isSuccess: true };
       }
 
       return {

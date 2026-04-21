@@ -1,4 +1,4 @@
-import { useUser } from '@clerk/clerk-expo';
+import { useUser } from '@clerk/expo';
 import { useState } from 'react';
 import { UseUpdatePasswordReturn } from '../types';
 

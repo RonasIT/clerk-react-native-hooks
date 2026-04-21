@@ -1,4 +1,4 @@
-import { getClerkInstance } from '@clerk/clerk-expo';
+import { useClerk, useSignIn, useSignUp } from '@clerk/expo';
 import { UseClerkResourcesReturn } from '../types';
 
 /**
@@ -11,11 +11,15 @@ import { UseClerkResourcesReturn } from '../types';
  * - `signOut` - A function that signs out the current user
  */
 export const useClerkResources = (): UseClerkResourcesReturn => {
-  const clerk = getClerkInstance();
-  const signUp = clerk.client?.signUp;
-  const signIn = clerk.client?.signIn;
-  const signOut = clerk.signOut;
-  const setActive = clerk.setActive;
+  const { signUp } = useSignUp();
+  const { signIn } = useSignIn();
+  const { signOut } = useClerk();
 
-  return { signUp, signIn, setActive, signOut };
+  signIn.create({
+    identifier: 'test@test.com',
+    password: 'password',
+    signUpIfMissing: true,
+  });
+
+  return { signUp, signIn, signOut };
 };
