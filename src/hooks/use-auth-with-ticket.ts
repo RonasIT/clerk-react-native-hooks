@@ -25,20 +25,22 @@ export function useAuthWithTicket(): UseAuthWithTicketReturn {
       });
 
       if (signIn?.status === 'complete') {
-        await signIn.finalize({
+        const { error: finalizeError } = await signIn.finalize({
           navigate: async ({ session }) => {
             sessionToken = await session.getToken({ template: tokenTemplate });
           },
         });
 
+        if (finalizeError) {
+          return { isSuccess: false, signIn, error: finalizeError };
+        }
+
         if (sessionToken) {
           return { sessionToken, signIn, isSuccess: !!sessionToken };
         }
-
-        return { isSuccess: false, signIn, error };
       }
 
-      return { isSuccess: false, signIn, error: null };
+      return { isSuccess: false, signIn, error };
     } catch (error) {
       return {
         signIn,

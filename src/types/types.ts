@@ -324,20 +324,15 @@ export type IdentifierMethodFor<VerifyBy extends AuthIdentifierVerifyBy> = Verif
   : AuthIdentifierMethod;
 
 /**
- * Parameters for starting an authentication flow, based on the selected verification method.
+ * Shared parameters for identifier-based auth (sign-in and sign-up), by verification method.
  *
- * - For `'otp'`: requires only an identifier (email or phone); optional `signUpIfMissing` for Clerk sign-in-or-up.
- * - For `'password'`: requires identifier and password, and optionally a token template.
+ * - For `'otp'`: identifier only (email or phone).
+ * - For `'password'`: identifier, password, and optional token template.
  */
 export type StartAuthParams<VerifyBy extends AuthIdentifierVerifyBy> = VerifyBy extends 'otp'
   ? {
       /** Identifier (email address or phone number). */
       identifier: string;
-      /**
-       * If `true`, Clerk runs the sign-in-or-up flow: verification runs even when no user
-       * exists yet. Not supported for password.
-       */
-      signUpIfMissing?: boolean;
     }
   : {
       /** Identifier (email address, phone number, or username). */
@@ -347,6 +342,21 @@ export type StartAuthParams<VerifyBy extends AuthIdentifierVerifyBy> = VerifyBy 
       /** Optional name of a token template for customizing the session token. */
       tokenTemplate?: string;
     };
+
+/**
+ * Parameters for `startSignIn` on {@link UseAuthWithIdentifierReturn}.
+ *
+ * Same as {@link StartAuthParams}, except OTP sign-in may set `signUpIfMissing` (Clerk sign-in-or-up).
+ */
+export type StartSignInParams<VerifyBy extends AuthIdentifierVerifyBy> = VerifyBy extends 'otp'
+  ? StartAuthParams<'otp'> & {
+      /**
+       * If `true`, Clerk runs the sign-in-or-up flow: verification runs even when no user
+       * exists yet. Not supported for password or for sign-up.
+       */
+      signUpIfMissing?: boolean;
+    }
+  : StartAuthParams<'password'>;
 
 /**
  * Return type for starting a sign-in flow.
@@ -386,7 +396,7 @@ interface BaseUseAuthWithIdentifierReturn<VerifyBy extends AuthIdentifierVerifyB
    * Initiates the sign-in flow using the provided identifier and verification method.
    *
    * @param params - Authentication parameters depending on `VerifyBy` type. When `VerifyBy` is `'otp'`, `params` may
-   *   include `signUpIfMissing` (see {@link StartAuthParams} for behavior).
+   *   include `signUpIfMissing` (see {@link StartSignInParams} for behavior).
    * @returns A Promise resolving to a result of sign-in attempt.
    *
    * @example
@@ -409,7 +419,7 @@ interface BaseUseAuthWithIdentifierReturn<VerifyBy extends AuthIdentifierVerifyB
    *  signUpIfMissing: true
    * });
    */
-  startSignIn: (params: StartAuthParams<VerifyBy>) => Promise<StartSignInWithIdentifierReturn<VerifyBy>>;
+  startSignIn: (params: StartSignInParams<VerifyBy>) => Promise<StartSignInWithIdentifierReturn<VerifyBy>>;
   /**
    * Initiates the sign-up flow using the provided identifier and verification method.
    *
