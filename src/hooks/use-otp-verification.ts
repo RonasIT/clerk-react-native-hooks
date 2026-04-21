@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { OtpStrategy, UseOtpVerificationReturn } from '../types';
 import { useClerkResources } from './use-clerk-resources';
-import type { SignInFutureResource } from '@clerk/expo/types';
+import type { SignInFutureResource, SignUpFutureResource } from '@clerk/expo/types';
 
 /**
  * Hook that provides functionality for managing OTP (One Time Password) verification in user authentication workflows, supporting both sign-up and sign-in processes.
@@ -16,6 +16,25 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
   const [isVerifying, setIsVerifying] = useState(false);
 
   const isEmailStrategy = strategy === 'email_code';
+
+  type HandleFinalizeReturn = {
+    error: Awaited<ReturnType<SignUpFutureResource['finalize']>>['error'];
+    sessionToken: string | null;
+  };
+
+  const handleFinalize = async (
+    resourceFinalize: SignUpFutureResource['finalize'] | SignInFutureResource['finalize'],
+    tokenTemplate: string | undefined,
+  ): Promise<HandleFinalizeReturn> => {
+    let sessionToken: string | null = null;
+    const { error } = await resourceFinalize({
+      navigate: async ({ session }) => {
+        sessionToken = await session.getToken({ template: tokenTemplate });
+      },
+    });
+
+    return { error, sessionToken };
+  };
 
   type SecondFactorSendResult = Awaited<ReturnType<SignInFutureResource['mfa']['sendEmailCode']>>;
 
@@ -65,30 +84,27 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
   }) => {
     try {
       setIsVerifying(true);
-      let sessionToken = null;
+
+      const verifyPromise = isSignUp
+        ? signUp.verifications[isEmailStrategy ? 'verifyEmailCode' : 'verifyPhoneCode']({ code })
+        : isSecondFactor
+          ? signIn.mfa[isEmailStrategy ? 'verifyEmailCode' : 'verifyPhoneCode']({ code })
+          : signIn[isEmailStrategy ? 'emailCode' : 'phoneCode'].verifyCode({ code });
+
+      const { error: verifyError } = await verifyPromise;
+
+      if (verifyError) {
+        return {
+          signIn,
+          signUp,
+          error: verifyError,
+          isSuccess: false,
+        };
+      }
 
       if (isSignUp) {
-        const { error: verifyError } = await signUp?.verifications[
-          isEmailStrategy ? 'verifyEmailCode' : 'verifyPhoneCode'
-        ]({
-          code,
-        });
-
-        if (verifyError) {
-          return {
-            signIn,
-            signUp,
-            error: verifyError,
-            isSuccess: false,
-          };
-        }
-
-        if (signUp?.status === 'complete') {
-          const { error } = await signUp.finalize({
-            navigate: async ({ session }) => {
-              sessionToken = await session.getToken({ template: tokenTemplate });
-            },
-          });
+        if (signUp.status === 'complete') {
+          const { error, sessionToken } = await handleFinalize(signUp.finalize, tokenTemplate);
 
           if (error) {
             return {
@@ -108,33 +124,23 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
             };
           }
         }
-      } else {
-        const { error: verifyError } = isSecondFactor
-          ? await signIn?.mfa[isEmailStrategy ? 'verifyEmailCode' : 'verifyPhoneCode']({ code })
-          : await signIn?.[isEmailStrategy ? 'emailCode' : 'phoneCode'].verifyCode({ code });
+      } else if (signIn.status === 'complete') {
+        const { error, sessionToken } = await handleFinalize(signIn.finalize, tokenTemplate);
 
-        if (signIn?.status === 'complete') {
-          const { error } = await signIn.finalize({
-            navigate: async ({ session }) => {
-              sessionToken = await session.getToken({ template: tokenTemplate });
-            },
-          });
-
-          if (error) {
-            return {
-              signIn,
-              signUp,
-              error,
-              isSuccess: false,
-            };
-          }
-
-          if (sessionToken) {
-            return { sessionToken, signIn, signUp, isSuccess: true };
-          }
-
-          return { sessionToken: null, signIn, signUp, isSuccess: false, error: verifyError };
+        if (error) {
+          return {
+            signIn,
+            signUp,
+            error,
+            isSuccess: false,
+          };
         }
+
+        if (sessionToken) {
+          return { sessionToken, signIn, signUp, isSuccess: true };
+        }
+
+        return { signIn, signUp, isSuccess: false };
       }
 
       return {
