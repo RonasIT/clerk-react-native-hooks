@@ -47,8 +47,6 @@ type StartSignUpReturn = (BaseSuccessReturn | BaseFailureReturn) & WithSignUpRet
 
 type StartSignInReturn = (BaseSuccessReturn | BaseFailureReturn) & WithSignInReturn;
 
-type StartAuthorizationReturn = (BaseSuccessReturn | BaseFailureReturn) & WithClerkReturn & { isSignUp?: boolean };
-
 export type AuthorizationFinishedReturn = (WithTokenSuccessReturn | WithTokenFailureReturn) & WithClerkReturn;
 
 /** Type for OTP methods (email or phone) */
@@ -380,19 +378,6 @@ export type StartSignUpWithIdentifierReturn<Method extends AuthIdentifierMethod>
       sessionToken?: string;
     }
   : StartSignUpReturn;
-
-/**
- * Return type for starting a generic authorization (sign-up or sign-in).
- *
- * - For `'username'`: may include a `sessionToken`.
- * - For others: standard return type.
- */
-export type StartAuthorizationWithIdentifierReturn<Method extends AuthIdentifierMethod> = Method extends 'username'
-  ? StartAuthorizationReturn & {
-      /** Optional session token returned upon successful username authorization. */
-      sessionToken?: string;
-    }
-  : StartAuthorizationReturn;
 
 export type StartSignUpParams<VerifyBy extends AuthIdentifierVerifyBy> = StartAuthParams<VerifyBy> & SignUpParams;
 
