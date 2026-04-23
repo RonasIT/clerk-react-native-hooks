@@ -1,7 +1,8 @@
+import { isClerkAPIResponseError } from '@clerk/expo';
 import { useState } from 'react';
 import { OtpStrategy, UseOtpVerificationReturn } from '../types';
 import { useClerkResources } from './use-clerk-resources';
-import type { SignInFutureResource, SignUpFutureResource } from '@clerk/expo/types';
+import type { SignInFutureResource, SignUpFutureFinalizeParams, SignUpFutureResource } from '@clerk/expo/types';
 
 /**
  * Hook that provides functionality for managing OTP (One Time Password) verification in user authentication workflows, supporting both sign-up and sign-in processes.
@@ -23,15 +24,17 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
   };
 
   const handleFinalize = async (
-    resourceFinalize: SignUpFutureResource['finalize'] | SignInFutureResource['finalize'],
+    isSignUp: boolean,
     tokenTemplate: string | undefined,
   ): Promise<HandleFinalizeReturn> => {
     let sessionToken: string | null = null;
-    const { error } = await resourceFinalize({
+
+    const options: SignUpFutureFinalizeParams = {
       navigate: async ({ session }) => {
         sessionToken = await session.getToken({ template: tokenTemplate });
       },
-    });
+    };
+    const { error } = isSignUp ? await signUp.finalize(options) : await signIn.finalize(options);
 
     return { error, sessionToken };
   };
@@ -63,7 +66,7 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
           return { isSuccess: false, error, signIn, signUp };
         }
       } else {
-        const { error } = await signIn?.[isEmailStrategy ? 'emailCode' : 'phoneCode']?.sendCode();
+        const { error } = await signIn[isEmailStrategy ? 'emailCode' : 'phoneCode'].sendCode();
 
         if (error) {
           return { isSuccess: false, error, signIn, signUp };
@@ -94,17 +97,64 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
       const { error: verifyError } = await verifyPromise;
 
       if (verifyError) {
+        const isSignUpIfMissingTransfer =
+          !isSignUp &&
+          !isSecondFactor &&
+          isClerkAPIResponseError(verifyError) &&
+          verifyError.errors[0]?.code === 'sign_up_if_missing_transfer';
+
+        if (!isSignUpIfMissingTransfer) {
+          return {
+            signIn,
+            signUp,
+            error: verifyError,
+            isSuccess: false,
+          };
+        }
+
+        const { error: transferError } = await signUp.create({ transfer: true });
+
+        if (transferError) {
+          return {
+            signIn,
+            signUp,
+            error: transferError,
+            isSuccess: false,
+          };
+        }
+
+        if (signUp.status === 'complete') {
+          const { error, sessionToken } = await handleFinalize(true, tokenTemplate);
+
+          if (error) {
+            return {
+              signIn,
+              signUp,
+              error,
+              isSuccess: false,
+            };
+          }
+
+          if (sessionToken) {
+            return {
+              sessionToken,
+              signIn,
+              signUp,
+              isSuccess: true,
+            };
+          }
+        }
+
         return {
           signIn,
           signUp,
-          error: verifyError,
           isSuccess: false,
         };
       }
 
       if (isSignUp) {
         if (signUp.status === 'complete') {
-          const { error, sessionToken } = await handleFinalize(signUp.finalize, tokenTemplate);
+          const { error, sessionToken } = await handleFinalize(true, tokenTemplate);
 
           if (error) {
             return {
@@ -125,7 +175,7 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
           }
         }
       } else if (signIn.status === 'complete') {
-        const { error, sessionToken } = await handleFinalize(signIn.finalize, tokenTemplate);
+        const { error, sessionToken } = await handleFinalize(false, tokenTemplate);
 
         if (error) {
           return {
