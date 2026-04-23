@@ -86,6 +86,7 @@ export function useAuthWithIdentifier<
     return {
       isSuccess: false,
       error,
+      status: authMethod?.status,
       [isSignUp ? 'signUp' : 'signIn']: authMethod,
     } as StartSignInWithIdentifierReturn<TVerifyBy> | StartSignUpWithIdentifierReturn<TMethod>;
   };
@@ -106,7 +107,7 @@ export function useAuthWithIdentifier<
         const { error } = await authMethod?.create({ [identifierFieldName]: identifier, password, ...restParams });
 
         if (error) {
-          return { isSuccess: false, signIn, signUp, error };
+          return { isSuccess: false, signIn, signUp, error, status: authMethod?.status };
         }
 
         if (authMethod?.status === 'complete') {

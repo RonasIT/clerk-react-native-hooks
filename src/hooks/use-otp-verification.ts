@@ -196,6 +196,7 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
       return {
         signIn,
         signUp,
+        status: isSignUp ? undefined : signIn.status,
         isSuccess: false,
       };
     } catch (error) {
