@@ -18,7 +18,7 @@ import {
 
 type BaseSuccessReturn = { isSuccess: true; error?: never };
 
-type BaseFailureReturn = { isSuccess?: false; error: ClerkAPIError | unknown };
+type BaseFailureReturn = { isSuccess?: false; error?: ClerkAPIError | unknown };
 
 type WithTokenSuccessReturn = BaseSuccessReturn & { sessionToken: string };
 

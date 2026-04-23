@@ -24,7 +24,6 @@ import { useOtpVerification } from './use-otp-verification';
  * @returns {UseAuthWithIdentifierReturn<TVerifyBy, TMethod>} Object containing:
  * - `startSignUp` - Initiates a new user registration using the specified identifier and verification method
  * - `startSignIn` - Initiates authentication of an existing user using the specified identifier and verification method
- * - `startAuthorization` - Determines whether to initiate a sign-up or sign-in based on whether the user has been registered previously
  * - `verifyCode` - Verifies an OTP code if the verification method is 'otp' (only available for non-username methods)
  * - `isLoading` - Indicates whether an authentication request is in progress
  * - `isVerifying` - Indicates whether an OTP verification is in progress (only available for non-username methods)

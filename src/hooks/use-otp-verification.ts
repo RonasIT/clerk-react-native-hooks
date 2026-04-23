@@ -148,6 +148,7 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
         return {
           signIn,
           signUp,
+          error: verifyError,
           isSuccess: false,
         };
       }
@@ -189,8 +190,6 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
         if (sessionToken) {
           return { sessionToken, signIn, signUp, isSuccess: true };
         }
-
-        return { signIn, signUp, isSuccess: false };
       }
 
       return {
