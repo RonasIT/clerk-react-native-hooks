@@ -1,7 +1,6 @@
+import { useSignIn } from '@clerk/expo';
 import { useState } from 'react';
 import { UseAuthWithTicketReturn } from '../types';
-import { useClerkResources } from './use-clerk-resources';
-import { useGetSessionToken } from './use-get-session-token';
 
 /**
  * Hook that facilitates user authentication using a ticket-based strategy (ticket is a token generated from the Backend API).
@@ -11,56 +10,46 @@ import { useGetSessionToken } from './use-get-session-token';
  * - `isLoading` - A boolean indicating whether the ticket-based authorization process is ongoing
  */
 export function useAuthWithTicket(): UseAuthWithTicketReturn {
-  const { signIn, setActive } = useClerkResources();
-  const { getSessionToken } = useGetSessionToken();
+  const { signIn } = useSignIn();
   const [isLoading, setIsLoading] = useState(false);
 
   const startAuthorization: UseAuthWithTicketReturn['startAuthorization'] = async ({ ticket, tokenTemplate }) => {
-    if (signIn) {
-      setIsLoading(true);
+    setIsLoading(true);
 
-      try {
-        const signInAttempt = await signIn.create({
-          strategy: 'ticket',
-          ticket,
+    let sessionToken: string | null = null;
+
+    try {
+      const { error } = await signIn.create({
+        strategy: 'ticket',
+        ticket,
+      });
+
+      if (signIn?.status === 'complete') {
+        const { error: finalizeError } = await signIn.finalize({
+          navigate: async ({ session }) => {
+            sessionToken = await session.getToken({ template: tokenTemplate });
+          },
         });
 
-        if (signInAttempt.status === 'complete') {
-          await setActive({
-            session: signInAttempt.createdSessionId,
-          });
-          const { sessionToken, error } = await getSessionToken({ tokenTemplate });
-
-          if (sessionToken) {
-            return {
-              sessionToken,
-              signIn,
-              isSuccess: true,
-            };
-          }
-
-          return {
-            signIn,
-            error,
-            isSuccess: false,
-          };
+        if (finalizeError) {
+          return { isSuccess: false, signIn, error: finalizeError };
         }
-      } catch (error) {
-        return {
-          signIn,
-          error,
-          isSuccess: false,
-        };
-      } finally {
-        setIsLoading(false);
-      }
-    }
 
-    return {
-      sessionToken: null,
-      signIn,
-      isSuccess: false,
-    };
+        if (sessionToken) {
+          return { sessionToken, signIn, isSuccess: !!sessionToken };
+        }
+      }
+
+      return { isSuccess: false, signIn, error };
+    } catch (error) {
+      return {
+        signIn,
+        error,
+        isSuccess: false,
+      };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return {

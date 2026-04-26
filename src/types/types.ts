@@ -3,36 +3,37 @@ import {
   EmailAddressResource,
   OAuthStrategy,
   PhoneNumberResource,
-  SetActive,
-  SignInResource,
   SignInStatus,
   SignOut,
   SignUpCreateParams,
-  SignUpResource,
   UpdateUserPasswordParams,
   UserResource,
-} from '@clerk/types';
+  SignInFutureResource,
+  SignUpFutureResource,
+  StartSSOFlowReturnType,
+  SignInResource,
+} from '@clerk/expo/types';
 
 // #region --- BASE & UTILITY TYPES ---
 
 type BaseSuccessReturn = { isSuccess: true; error?: never };
 
-type BaseFailureReturn = { isSuccess?: false; error: ClerkAPIError | unknown };
+type BaseFailureReturn = { isSuccess?: false; error?: ClerkAPIError | unknown };
 
 type WithTokenSuccessReturn = BaseSuccessReturn & { sessionToken: string };
 
 type WithTokenFailureReturn = BaseFailureReturn & { sessionToken?: null };
 
 type WithSignInReturn = {
-  /** Provides access to SignIn object: https://clerk.com/docs/references/javascript/sign-in */
-  signIn?: SignInResource;
+  /** Provides access to SignInFuture object: https://clerk.com/docs/expo/reference/objects/sign-in-future */
+  signIn?: SignInFutureResource;
   /** The current status of the sign-in. */
   status?: SignInStatus;
 };
 
 type WithSignUpReturn = {
-  /** Provides access to SignUp object: https://clerk.com/docs/references/javascript/sign-up */
-  signUp?: SignUpResource;
+  /** Provides access to SignInFuture object: hhttps://clerk.com/docs/expo/reference/objects/sign-up-future */
+  signUp?: SignUpFutureResource;
 };
 
 type WithClerkReturn = WithSignInReturn & WithSignUpReturn;
@@ -40,8 +41,6 @@ type WithClerkReturn = WithSignInReturn & WithSignUpReturn;
 type StartSignUpReturn = (BaseSuccessReturn | BaseFailureReturn) & WithSignUpReturn;
 
 type StartSignInReturn = (BaseSuccessReturn | BaseFailureReturn) & WithSignInReturn;
-
-type StartAuthorizationReturn = (BaseSuccessReturn | BaseFailureReturn) & WithClerkReturn & { isSignUp?: boolean };
 
 export type AuthorizationFinishedReturn = (WithTokenSuccessReturn | WithTokenFailureReturn) & WithClerkReturn;
 
@@ -61,9 +60,7 @@ export type SignUpParams = Pick<
 
 // #region --- CORE RESOURCES & SESSION ---
 
-export type UseClerkResourcesReturn = WithClerkReturn & {
-  /** A function that sets the active session */
-  setActive: SetActive;
+export type UseClerkResourcesReturn = Required<Omit<WithClerkReturn, 'status'>> & {
   /** A function that signs out the current user */
   signOut: SignOut;
 };
@@ -158,7 +155,12 @@ export interface UseAuthWithSSOReturn {
    *
    * `signIn` and `signUp` may be present depending on the outcome and stage of the flow.
    */
-  startSSOFlow: (params: StartSSOArgs) => Promise<AuthorizationFinishedReturn>;
+  startSSOFlow: (params: StartSSOArgs) => Promise<
+    (WithTokenSuccessReturn | WithTokenFailureReturn) & {
+      signIn?: StartSSOFlowReturnType['signIn'];
+      signUp?: StartSSOFlowReturnType['signUp'];
+    }
+  >;
 
   /** Indicates whether the SSO authentication flow is currently in progress. `true` or `false` */
   isLoading: boolean;
@@ -185,11 +187,7 @@ export interface UseOtpVerificationReturn {
    *
    * @returns A Promise resolving to success with optional `signIn` / `signUp`, or failure with `error` and the same optional resources.
    */
-  sendOtpCode: (params: {
-    strategy: OtpStrategy;
-    isSignUp: boolean;
-    isSecondFactor?: boolean;
-  }) => Promise<SendOtpCodeReturn>;
+  sendOtpCode: (params: { isSignUp: boolean; isSecondFactor?: boolean }) => Promise<SendOtpCodeReturn>;
 
   /**
    * Verifies the OTP code entered by the user.
@@ -207,7 +205,6 @@ export interface UseOtpVerificationReturn {
    */
   verifyCode: (params: {
     code: string;
-    strategy: OtpStrategy;
     isSignUp: boolean;
     tokenTemplate?: string;
     isSecondFactor?: boolean;
@@ -327,10 +324,10 @@ export type IdentifierMethodFor<VerifyBy extends AuthIdentifierVerifyBy> = Verif
   : AuthIdentifierMethod;
 
 /**
- * Parameters for starting an authentication flow, based on the selected verification method.
+ * Shared parameters for identifier-based auth (sign-in and sign-up), by verification method.
  *
- * - For `'otp'`: requires only an identifier (email or phone).
- * - For `'password'`: requires identifier and password, and optionally a token template.
+ * - For `'otp'`: identifier only (email or phone).
+ * - For `'password'`: identifier, password, and optional token template.
  */
 export type StartAuthParams<VerifyBy extends AuthIdentifierVerifyBy> = VerifyBy extends 'otp'
   ? {
@@ -345,6 +342,21 @@ export type StartAuthParams<VerifyBy extends AuthIdentifierVerifyBy> = VerifyBy 
       /** Optional name of a token template for customizing the session token. */
       tokenTemplate?: string;
     };
+
+/**
+ * Parameters for `startSignIn` on {@link UseAuthWithIdentifierReturn}.
+ *
+ * Same as {@link StartAuthParams}, except OTP sign-in may set `signUpIfMissing` (Clerk sign-in-or-up).
+ */
+export type StartSignInParams<VerifyBy extends AuthIdentifierVerifyBy> = VerifyBy extends 'otp'
+  ? StartAuthParams<'otp'> & {
+      /**
+       * If `true`, Clerk runs the sign-in-or-up flow: verification runs even when no user
+       * exists yet. Not supported for password or for sign-up.
+       */
+      signUpIfMissing?: boolean;
+    }
+  : StartAuthParams<'password'>;
 
 /**
  * Return type for starting a sign-in flow.
@@ -372,19 +384,6 @@ export type StartSignUpWithIdentifierReturn<Method extends AuthIdentifierMethod>
     }
   : StartSignUpReturn;
 
-/**
- * Return type for starting a generic authorization (sign-up or sign-in).
- *
- * - For `'username'`: may include a `sessionToken`.
- * - For others: standard return type.
- */
-export type StartAuthorizationWithIdentifierReturn<Method extends AuthIdentifierMethod> = Method extends 'username'
-  ? StartAuthorizationReturn & {
-      /** Optional session token returned upon successful username authorization. */
-      sessionToken?: string;
-    }
-  : StartAuthorizationReturn;
-
 export type StartSignUpParams<VerifyBy extends AuthIdentifierVerifyBy> = StartAuthParams<VerifyBy> & SignUpParams;
 
 /**
@@ -396,7 +395,8 @@ interface BaseUseAuthWithIdentifierReturn<VerifyBy extends AuthIdentifierVerifyB
   /**
    * Initiates the sign-in flow using the provided identifier and verification method.
    *
-   * @param params - Authentication parameters depending on `VerifyBy` type.
+   * @param params - Authentication parameters depending on `VerifyBy` type. When `VerifyBy` is `'otp'`, `params` may
+   *   include `signUpIfMissing` (see {@link StartSignInParams} for behavior).
    * @returns A Promise resolving to a result of sign-in attempt.
    *
    * @example
@@ -411,8 +411,15 @@ interface BaseUseAuthWithIdentifierReturn<VerifyBy extends AuthIdentifierVerifyB
    * await startSignIn({
    *  identifier: '+1234567890'
    * });
+   *
+   * @example
+   * // OTP sign-in-or-up: code still sent if the identifier is not registered yet
+   * await startSignIn({
+   *  identifier: 'user@example.com',
+   *  signUpIfMissing: true
+   * });
    */
-  startSignIn: (params: StartAuthParams<VerifyBy>) => Promise<StartSignInWithIdentifierReturn<VerifyBy>>;
+  startSignIn: (params: StartSignInParams<VerifyBy>) => Promise<StartSignInWithIdentifierReturn<VerifyBy>>;
   /**
    * Initiates the sign-up flow using the provided identifier and verification method.
    *
@@ -447,41 +454,6 @@ interface BaseUseAuthWithIdentifierReturn<VerifyBy extends AuthIdentifierVerifyB
    * });
    */
   startSignUp: (params: StartSignUpParams<VerifyBy>) => Promise<StartSignUpWithIdentifierReturn<any>>;
-
-  /**
-   * Initiates a combined authorization flow (sign-up or sign-in) based on user existence.
-   *
-   * @param params - Authentication parameters depending on `VerifyBy` type.
-   * @returns A Promise resolving to a result of the authorization flow.
-   *
-   * @example
-   * // Example 1: Authorize with email + OTP (sign-in or sign-up automatically)
-   * await startAuthorization({
-   *  identifier: 'user@example.com',
-   * });
-   *
-   * @example
-   * // Example 2: Authorize with phone + OTP
-   * await startAuthorization({
-   *  identifier: '+1234567890',
-   * });
-   *
-   * @example
-   * // Example 3: Authorize with username + password
-   * await startAuthorization({
-   *  identifier: 'username',
-   *  password: 'password'
-   * });
-   *
-   * @example
-   * // Example 4: Authorize with email + password + token template
-   * await startAuthorization({
-   *  identifier: 'user@example.com',
-   *  password: 'password',
-   *  tokenTemplate: 'my_template'
-   * });
-   */
-  startAuthorization: (params: StartAuthParams<VerifyBy>) => Promise<StartAuthorizationWithIdentifierReturn<any>>;
 
   /** Indicates whether an authentication request is currently being processed. `true` or `false` */
   isLoading: boolean;

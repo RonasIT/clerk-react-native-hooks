@@ -18,9 +18,8 @@ Hook, that provides access to essential Clerk methods and objects.
 
 Returned object:
 
-- `signUp` — [SignUp](https://clerk.com/docs/references/javascript/sign-up)
-- `signIn` — [SignIn](https://clerk.com/docs/references/javascript/sign-in)
-- `setActive` — sets the active session
+- `signUp` — [SignUp](https://clerk.com/docs/expo/reference/objects/sign-in-future)
+- `signIn` — [SignIn](https://clerk.com/docs/expo/reference/objects/sign-in-future)
 - `signOut` — signs out the current user
 
 ### `useAuthWithIdentifier`
@@ -34,7 +33,7 @@ Parameters:
 
 Returned object:
 
-- `startSignUp`, `startSignIn`, `startAuthorization`, `isLoading`
+- `startSignUp`, `startSignIn`, `isLoading`
 - For email/phone + OTP: `verifyCode`, `isVerifying` (`verifyCode` requires `code`, `isSignUp`, optional `tokenTemplate`)
 
 **Example:**

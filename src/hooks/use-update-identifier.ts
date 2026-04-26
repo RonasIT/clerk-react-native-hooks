@@ -1,5 +1,5 @@
-import { useUser } from '@clerk/clerk-expo';
-import { EmailAddressResource, PhoneNumberResource } from '@clerk/types';
+import { useUser } from '@clerk/expo';
+import { EmailAddressResource, PhoneNumberResource } from '@clerk/expo/types';
 import { useState } from 'react';
 import { IdentifierType, UseUpdateIdentifierReturn } from '../types';
 import { useAddIdentifier } from './use-add-identifier';

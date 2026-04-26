@@ -1,5 +1,5 @@
-import { isClerkAPIResponseError, useUser } from '@clerk/clerk-expo';
-import { EmailAddressResource, PhoneNumberResource } from '@clerk/types';
+import { isClerkAPIResponseError, useUser } from '@clerk/expo';
+import { EmailAddressResource, PhoneNumberResource } from '@clerk/expo/types';
 import { useState } from 'react';
 import { IdentifierType, UseAddIdentifierReturn } from '../types';
 
