@@ -187,7 +187,7 @@ export interface UseOtpVerificationReturn {
    *
    * @returns A Promise resolving to success with optional `signIn` / `signUp`, or failure with `error` and the same optional resources.
    */
-  sendOtpCode: (params: { isSignUp: boolean; isSecondFactor?: boolean }) => Promise<SendOtpCodeReturn>;
+  sendOtpCode: (params: { isSignUp?: boolean; isSecondFactor?: boolean }) => Promise<SendOtpCodeReturn>;
 
   /**
    * Verifies the OTP code entered by the user.
@@ -483,7 +483,7 @@ type ConditionalUseAuthWithIdentifierReturn<
        */
       verifyCode: (params: {
         code: string;
-        isSignUp: boolean;
+        isSignUp?: boolean;
         tokenTemplate?: string;
       }) => Promise<AuthorizationFinishedReturn>;
       /** Indicates whether OTP verification is currently in progress. `true` or `false` */

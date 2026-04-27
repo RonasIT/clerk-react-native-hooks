@@ -5,7 +5,7 @@ Hooks and helpers for user authentication with [Clerk Expo SDK](https://clerk.co
 ## Install
 
 ```sh
-npm install @ronas-it/clerk-react-native-hooks @clerk/clerk-expo @clerk/types expo-web-browser expo-auth-session
+npm install @ronas-it/clerk-react-native-hooks @clerk/expo @clerk/types expo-web-browser expo-auth-session expo-secure-store
 ```
 
 `react`, `react-native`, and your Clerk/Expo versions should match what `@clerk/clerk-expo` expects for your Expo SDK.
@@ -35,6 +35,7 @@ Returns:
 
 - `startSignUp`, `startSignIn`, `isLoading`
 - For email/phone + OTP: `verifyCode`, `isVerifying` (`verifyCode` requires `code`, `isSignUp`, optional `tokenTemplate`)
+- For OTP **sign-in** only: `startSignIn` accepts optional `signUpIfMissing` (see [Clerk sign-in-or-up with `signUpIfMissing](https://clerk.com/docs/guides/development/custom-flows/authentication/sign-in-or-up#sign-in-or-up-with-sign-up-if-missing)`)
 
 ### Examples
 
@@ -109,17 +110,17 @@ const onSignIn = async (values: { emailAddress: string; password: string }) => {
 
 #### Single entry: one email/phone field, then OTP (sign-in or sign-up):
 
-Use this when **sign-in** and **sign-up** share one identifier field (email or phone). `startAuthorization` tries sign-up first; if Clerk reports that the identifier already exists, it falls back to sign-in.
+Use this when **sign-in** and **sign-up** share one identifier (email or phone). Prefer Clerk’s `**signUpIfMissing`\*\* flow so verification runs even if the account does not exist yet. See Clerk: [Sign-in-or-up with `signUpIfMissing](https://clerk.com/docs/guides/development/custom-flows/authentication/sign-in-or-up#sign-in-or-up-with-sign-up-if-missing)`.
 
 ```ts
-// First screen — single identifier
-const { startAuthorization, isLoading } = useAuthWithIdentifier('emailAddress', 'otp');
+// First screen — treat as sign-in with signUpIfMissing; OTP is sent on success
+const { startSignIn, isLoading } = useAuthWithIdentifier('emailAddress', 'otp');
 
 const onContinue = async (email: string) => {
-  const { error, isSignUp, isSuccess } = await startAuthorization({ identifier: email });
+  const { error, isSuccess } = await startSignIn({ identifier: email, signUpIfMissing: true });
 
   if (isSuccess) {
-    // go to OTP step with email and isSignUp: !!isSignUp
+    // go to OTP step (same hook instance keeps signIn / signUp resources)
   }
 
   if (error) {
@@ -129,11 +130,14 @@ const onContinue = async (email: string) => {
 ```
 
 ```ts
-// OTP screen — same isSignUp flag from startAuthorization
+// OTP screen
 const { verifyCode, isVerifying } = useAuthWithIdentifier('emailAddress', 'otp');
 
-const onVerify = async (code: string, isSignUp: boolean) => {
-  const { sessionToken, error, isSuccess } = await verifyCode({ code, isSignUp, tokenTemplate: 'your_jwt_template' });
+const onVerify = async (code: string) => {
+  const { sessionToken, error, isSuccess, signUp } = await verifyCode({
+    code,
+    tokenTemplate: 'your_jwt_template',
+  });
 
   if (isSuccess) {
     // handle success
@@ -145,7 +149,7 @@ const onVerify = async (code: string, isSignUp: boolean) => {
 };
 ```
 
-Alternatively, on the code screen you can use `useOtpVerification` for `verifyCode` / `sendOtpCode` as long as you pass the same `isSignUp` into those calls.
+On the code screen you can use `useOtpVerification` for resend / verify instead; use `**isSignUp: false**` for `sendOtpCode` and `verifyCode` on this path so transfer behavior stays correct.
 
 ### `useAuthWithSSO`
 
