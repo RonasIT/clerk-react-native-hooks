@@ -10,6 +10,28 @@ npm install @ronas-it/clerk-react-native-hooks @clerk/expo @clerk/types expo-web
 
 `react`, `react-native`, and your Clerk/Expo versions should match what `@clerk/clerk-expo` expects for your Expo SDK.
 
+In your app, follow Clerk's [Expo quickstart](https://clerk.com/docs/expo/getting-started/quickstart): wrap the root layout with `ClerkProvider` from `@clerk/expo` and pass your **publishable key** from the Clerk Dashboard.
+
+```tsx
+import { ClerkProvider } from '@clerk/expo';
+import { Slot } from 'expo-router';
+
+export default function RootLayout() {
+  return (
+    <ClerkProvider publishableKey={publishableKey}>
+      <Slot />
+    </ClerkProvider>
+  );
+}
+```
+
+Then import the hooks you need:
+
+```ts
+import { useAuthWithIdentifier, useOtpVerification, useClerkResources } from '@ronas-it/clerk-react-native-hooks';
+import type { OtpStrategy } from '@ronas-it/clerk-react-native-hooks';
+```
+
 ## API
 
 ### `useClerkResources`
