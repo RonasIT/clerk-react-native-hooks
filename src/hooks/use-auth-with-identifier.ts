@@ -1,19 +1,16 @@
-import { isClerkAPIResponseError } from '@clerk/clerk-expo';
-import { SignInResource } from '@clerk/types';
 import { useState } from 'react';
-import { ClerkApiError } from '../enums';
 import {
   AuthIdentifierVerifyBy,
   AuthorizationFinishedReturn,
   IdentifierMethodFor,
   StartAuthParams,
+  StartSignInParams,
   StartSignInWithIdentifierReturn,
   StartSignUpParams,
   StartSignUpWithIdentifierReturn,
   UseAuthWithIdentifierReturn,
 } from '../types';
 import { useClerkResources } from './use-clerk-resources';
-import { useGetSessionToken } from './use-get-session-token';
 import { useOtpVerification } from './use-otp-verification';
 
 /**
@@ -27,7 +24,6 @@ import { useOtpVerification } from './use-otp-verification';
  * @returns {UseAuthWithIdentifierReturn<TVerifyBy, TMethod>} Object containing:
  * - `startSignUp` - Initiates a new user registration using the specified identifier and verification method
  * - `startSignIn` - Initiates authentication of an existing user using the specified identifier and verification method
- * - `startAuthorization` - Determines whether to initiate a sign-up or sign-in based on whether the user has been registered previously
  * - `verifyCode` - Verifies an OTP code if the verification method is 'otp' (only available for non-username methods)
  * - `isLoading` - Indicates whether an authentication request is in progress
  * - `isVerifying` - Indicates whether an OTP verification is in progress (only available for non-username methods)
@@ -36,50 +32,42 @@ export function useAuthWithIdentifier<
   TVerifyBy extends AuthIdentifierVerifyBy,
   TMethod extends IdentifierMethodFor<TVerifyBy>,
 >(method: TMethod, verifyBy: TVerifyBy): UseAuthWithIdentifierReturn<TVerifyBy, TMethod> {
-  const { signUp, signIn, setActive } = useClerkResources();
-  const { sendOtpCode, verifyCode: verifyOtpCode, isVerifying } = useOtpVerification();
-  const { getSessionToken } = useGetSessionToken();
+  const { signUp, signIn } = useClerkResources();
 
-  const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const strategy = method === 'emailAddress' ? 'email_code' : 'phone_code';
-
-  const handleSessionToken = async (tokenTemplate?: string): Promise<{ sessionToken?: string; error?: unknown }> => {
-    const { sessionToken, error } = await getSessionToken({ tokenTemplate });
-
-    return { sessionToken: sessionToken || undefined, error };
-  };
+  const { sendOtpCode, verifyCode: verifyOtpCode, isVerifying } = useOtpVerification(strategy);
 
   const handleSignInWithPassword = async (
-    signInAttempt: SignInResource,
     isSignUp: boolean,
     tokenTemplate?: string,
   ): Promise<StartSignInWithIdentifierReturn<TVerifyBy> | StartSignUpWithIdentifierReturn<TMethod>> => {
-    await setActive({ session: signInAttempt.createdSessionId });
-    const { sessionToken, error } = await handleSessionToken(tokenTemplate);
+    const authMethod = isSignUp ? signUp : signIn;
 
-    if (isSignUp) {
-      return {
-        signUp,
-        error,
-        sessionToken,
-        isSuccess: !!sessionToken,
-      } as StartSignUpWithIdentifierReturn<TMethod>;
+    let sessionToken: string | null = null;
+
+    const { error } = await authMethod.finalize({
+      navigate: async ({ session }) => {
+        sessionToken = await session.getToken({ template: tokenTemplate });
+      },
+    });
+
+    if (sessionToken) {
+      return { sessionToken, signIn, signUp, isSuccess: true };
     }
 
-    return {
-      signIn,
-      error,
-      sessionToken,
-      isSuccess: !!sessionToken,
-    } as StartSignInWithIdentifierReturn<TVerifyBy>;
+    if (error) {
+      return { error, signIn, signUp, isSuccess: false };
+    }
+
+    return { isSuccess: false, signIn, signUp, error: null };
   };
 
   const handleUsernameAuth: {
     (params: StartSignUpParams<TVerifyBy>, isSignUp: true): Promise<StartSignUpWithIdentifierReturn<TMethod>>;
-    (params: StartAuthParams<TVerifyBy>, isSignUp: false): Promise<StartSignInWithIdentifierReturn<TVerifyBy>>;
+    (params: StartSignInParams<TVerifyBy>, isSignUp: false): Promise<StartSignInWithIdentifierReturn<TVerifyBy>>;
   } = async (
-    params: StartAuthParams<TVerifyBy> | StartSignUpParams<TVerifyBy>,
+    params: StartSignInParams<TVerifyBy> | StartSignUpParams<TVerifyBy>,
     isSignUp: boolean,
   ): Promise<StartSignInWithIdentifierReturn<TVerifyBy> | StartSignUpWithIdentifierReturn<TMethod>> => {
     const { identifier, password, tokenTemplate, ...restParams } = params as StartAuthParams<'password'>;
@@ -88,23 +76,25 @@ export function useAuthWithIdentifier<
       ? { username: identifier, password, ...restParams }
       : { identifier, password, ...restParams };
 
-    const authAttempt = await authMethod?.create(authPayload);
+    const { error } = await authMethod?.create(authPayload);
 
-    if (authAttempt?.status === 'complete' && 'createdSessionId' in authAttempt) {
-      return handleSignInWithPassword(authAttempt as SignInResource, isSignUp, tokenTemplate);
+    if (authMethod?.status === 'complete') {
+      return handleSignInWithPassword(isSignUp, tokenTemplate);
     }
 
     return {
       isSuccess: false,
+      error,
+      status: authMethod?.status,
       [isSignUp ? 'signUp' : 'signIn']: authMethod,
     } as StartSignInWithIdentifierReturn<TVerifyBy> | StartSignUpWithIdentifierReturn<TMethod>;
   };
 
   const handleEmailPhoneAuth: {
     (params: StartSignUpParams<TVerifyBy>, isSignUp: true): Promise<StartSignUpWithIdentifierReturn<TMethod>>;
-    (params: StartAuthParams<TVerifyBy>, isSignUp: false): Promise<StartSignInWithIdentifierReturn<TVerifyBy>>;
+    (params: StartSignInParams<TVerifyBy>, isSignUp: false): Promise<StartSignInWithIdentifierReturn<TVerifyBy>>;
   } = async (
-    params: StartAuthParams<TVerifyBy> | StartSignUpParams<TVerifyBy>,
+    params: StartSignInParams<TVerifyBy> | StartSignUpParams<TVerifyBy>,
     isSignUp: boolean,
   ): Promise<StartSignInWithIdentifierReturn<TVerifyBy> | StartSignUpWithIdentifierReturn<TMethod>> => {
     const authMethod = isSignUp ? signUp : signIn;
@@ -113,22 +103,34 @@ export function useAuthWithIdentifier<
     if (verifyBy === 'password') {
       try {
         const { password, tokenTemplate, identifier, ...restParams } = params as StartAuthParams<'password'>;
-        const authAttempt = await authMethod?.create({ [identifierFieldName]: identifier, password, ...restParams });
+        const { error } = await authMethod?.create({ [identifierFieldName]: identifier, password, ...restParams });
 
-        if (authAttempt?.status === 'complete' && 'createdSessionId' in authAttempt) {
-          return handleSignInWithPassword(authAttempt as SignInResource, isSignUp, tokenTemplate);
+        if (error) {
+          return { isSuccess: false, signIn, signUp, error, status: authMethod?.status };
+        }
+
+        if (authMethod?.status === 'complete') {
+          return handleSignInWithPassword(isSignUp, tokenTemplate);
         } else {
-          return { isSuccess: false, signIn, signUp, status: authAttempt?.status, error: null };
+          return { isSuccess: false, signIn, signUp, status: authMethod?.status, error: null };
         }
       } catch (error) {
-        return { error, signIn, signUp };
+        return { isSuccess: false, signIn, signUp, error };
       }
     } else if (verifyBy === 'otp') {
       const { identifier, ...restParams } = params;
 
       try {
-        await authMethod?.create({ [identifierFieldName]: identifier, ...restParams });
-        const { isSuccess, error } = await sendOtpCode({ strategy, isSignUp });
+        const { error } = await authMethod?.create({ [identifierFieldName]: identifier, ...restParams });
+
+        if (error) {
+          return { error, signIn, signUp };
+        }
+        const { error: sendOtpCodeError, isSuccess } = await sendOtpCode({ isSignUp });
+
+        if (sendOtpCodeError) {
+          return { error: sendOtpCodeError, signIn, signUp };
+        }
 
         return { isSuccess, error, signIn, signUp } as
           | StartSignInWithIdentifierReturn<TVerifyBy>
@@ -170,30 +172,6 @@ export function useAuthWithIdentifier<
     }
   };
 
-  const startAuthorization: UseAuthWithIdentifierReturn<TVerifyBy, TMethod>['startAuthorization'] = async (params) => {
-    try {
-      setIsAuthorizing(true);
-
-      const result = await startSignUp(params as StartSignUpParams<TVerifyBy>);
-
-      if (result?.error && isClerkAPIResponseError(result.error)) {
-        const error = result.error.errors[0];
-
-        if (error?.code === ClerkApiError.FORM_IDENTIFIER_EXIST) {
-          const signInResult = await startSignIn(params);
-
-          return { ...signInResult, isSignUp: false };
-        }
-      }
-
-      return { ...result, isSignUp: true };
-    } catch (error) {
-      return { error, signIn, signUp, isSuccess: false } as StartSignInWithIdentifierReturn<TVerifyBy>;
-    } finally {
-      setIsAuthorizing(false);
-    }
-  };
-
   const verifyCode = async ({
     code,
     isSignUp,
@@ -206,7 +184,7 @@ export function useAuthWithIdentifier<
     setIsLoading(true);
 
     try {
-      return await verifyOtpCode({ code, strategy, tokenTemplate, isSignUp });
+      return await verifyOtpCode({ code, tokenTemplate, isSignUp });
     } finally {
       setIsLoading(false);
     }
@@ -216,15 +194,13 @@ export function useAuthWithIdentifier<
     return {
       startSignIn,
       startSignUp,
-      startAuthorization,
-      isLoading: isAuthorizing || isLoading,
+      isLoading,
     } as UseAuthWithIdentifierReturn<TVerifyBy, TMethod>;
   } else {
     return {
       startSignIn,
       startSignUp,
-      startAuthorization,
-      isLoading: isAuthorizing || isLoading,
+      isLoading,
       verifyCode,
       isVerifying,
     } as UseAuthWithIdentifierReturn<TVerifyBy, TMethod>;

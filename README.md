@@ -18,9 +18,8 @@ Returns core Clerk resources used by the higher-level hooks.
 
 Returns:
 
-- `signUp` — [SignUp](https://clerk.com/docs/references/javascript/sign-up)
-- `signIn` — [SignIn](https://clerk.com/docs/references/javascript/sign-in)
-- `setActive` — sets the active session
+- `signUp` — [SignUp](https://clerk.com/docs/expo/reference/objects/sign-in-future)
+- `signIn` — [SignIn](https://clerk.com/docs/expo/reference/objects/sign-in-future)
 - `signOut` — signs out the current user
 
 ### `useAuthWithIdentifier`
@@ -34,10 +33,8 @@ Parameters:
 
 Returns:
 
-- `startSignUp`, `startSignIn`, `startAuthorization`, `isLoading`
-- For email/phone + OTP: `verifyCode`, `isVerifying`
-- `verifyCode` expects `{ code, isSignUp, tokenTemplate? }`
-- `startAuthorization` resolves with `isSignUp`: `true` if the flow continues as sign-up, `false` if the identifier already existed and Clerk switched to sign-in
+- `startSignUp`, `startSignIn`, `isLoading`
+- For email/phone + OTP: `verifyCode`, `isVerifying` (`verifyCode` requires `code`, `isSignUp`, optional `tokenTemplate`)
 
 ### Examples
 

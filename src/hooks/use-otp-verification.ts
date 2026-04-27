@@ -1,8 +1,8 @@
-import { EmailCodeFactor, PhoneCodeFactor } from '@clerk/types';
+import { isClerkAPIResponseError } from '@clerk/expo';
 import { useState } from 'react';
 import { OtpStrategy, UseOtpVerificationReturn } from '../types';
 import { useClerkResources } from './use-clerk-resources';
-import { useGetSessionToken } from './use-get-session-token';
+import type { SignInFutureResource, SignUpFutureFinalizeParams, SignUpFutureResource } from '@clerk/expo/types';
 
 /**
  * Hook that provides functionality for managing OTP (One Time Password) verification in user authentication workflows, supporting both sign-up and sign-in processes.
@@ -12,44 +12,65 @@ import { useGetSessionToken } from './use-get-session-token';
  * - `verifyCode` - Verifies the OTP code provided by the user, completing the authentication process
  * - `isVerifying` - A boolean indicating whether a verification attempt is currently in progress
  */
-export function useOtpVerification(): UseOtpVerificationReturn {
-  const { signUp, signIn, setActive } = useClerkResources();
-  const { getSessionToken } = useGetSessionToken();
+export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationReturn {
+  const { signUp, signIn } = useClerkResources();
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const sendSignInOtpCode = async (strategy: OtpStrategy, isSecondFactor: boolean = false): Promise<void> => {
-    const codeFactors = isSecondFactor ? signIn?.supportedSecondFactors : signIn?.supportedFirstFactors;
-    const prepareFactor = isSecondFactor ? signIn?.prepareSecondFactor : signIn?.prepareFirstFactor;
-    const codeFactor = codeFactors?.find(
-      (factor): factor is EmailCodeFactor | PhoneCodeFactor => factor.strategy === strategy,
-    );
+  const isEmailStrategy = strategy === 'email_code';
 
-    if (!prepareFactor) {
-      throw new Error(`No ${isSecondFactor ? 'second ' : ''}factor preparation for strategy: ${strategy}`);
-    }
-
-    if (codeFactor && 'emailAddressId' in codeFactor) {
-      await prepareFactor({ strategy: 'email_code', emailAddressId: codeFactor.emailAddressId });
-    } else if (codeFactor && 'phoneNumberId' in codeFactor) {
-      await prepareFactor({ strategy: 'phone_code', phoneNumberId: codeFactor.phoneNumberId });
-    } else {
-      throw new Error(`No ${isSecondFactor ? 'second ' : ''}factor found for strategy: ${strategy}`);
-    }
+  type HandleFinalizeReturn = {
+    error: Awaited<ReturnType<SignUpFutureResource['finalize']>>['error'];
+    sessionToken: string | null;
   };
 
-  const sendSignUpOtpCode = async (strategy: OtpStrategy): Promise<void> => {
-    if (!signUp) {
-      throw new Error('Sign up is not available');
-    }
-    await signUp.prepareVerification({ strategy });
+  const handleFinalize = async (
+    isSignUp: boolean,
+    tokenTemplate: string | undefined,
+  ): Promise<HandleFinalizeReturn> => {
+    let sessionToken: string | null = null;
+
+    const options: SignUpFutureFinalizeParams = {
+      navigate: async ({ session }) => {
+        sessionToken = await session.getToken({ template: tokenTemplate });
+      },
+    };
+    const { error } = isSignUp ? await signUp.finalize(options) : await signIn.finalize(options);
+
+    return { error, sessionToken };
   };
 
-  const sendOtpCode: UseOtpVerificationReturn['sendOtpCode'] = async ({ strategy, isSignUp, isSecondFactor }) => {
+  type SecondFactorSendResult = Awaited<ReturnType<SignInFutureResource['mfa']['sendEmailCode']>>;
+
+  async function sendSecondFactorOtpCode(): Promise<SecondFactorSendResult | { error: Error }> {
+    const secondFactor = signIn.supportedSecondFactors?.find((factor) => factor.strategy === strategy);
+
+    if (!secondFactor) {
+      throw new Error(`No second factor found for strategy: ${strategy}`);
+    }
+
+    return isEmailStrategy ? signIn.mfa.sendEmailCode() : signIn.mfa.sendPhoneCode();
+  }
+
+  const sendOtpCode: UseOtpVerificationReturn['sendOtpCode'] = async ({ isSignUp, isSecondFactor }) => {
     try {
       if (isSignUp) {
-        await sendSignUpOtpCode(strategy);
+        const { error } = await signUp.verifications[isEmailStrategy ? 'sendEmailCode' : 'sendPhoneCode']();
+
+        if (error) {
+          return { isSuccess: false, error, signIn, signUp };
+        }
+      } else if (isSecondFactor) {
+        const { error } = await sendSecondFactorOtpCode();
+
+        if (error) {
+          return { isSuccess: false, error, signIn, signUp };
+        }
       } else {
-        await sendSignInOtpCode(strategy, !!isSecondFactor);
+        const { error } = await signIn[isEmailStrategy ? 'emailCode' : 'phoneCode'].sendCode();
+
+        if (error) {
+          return { isSuccess: false, error, signIn, signUp };
+        }
       }
 
       return { isSuccess: true, signIn, signUp };
@@ -60,7 +81,6 @@ export function useOtpVerification(): UseOtpVerificationReturn {
 
   const verifyCode: UseOtpVerificationReturn['verifyCode'] = async ({
     code,
-    strategy,
     tokenTemplate,
     isSignUp,
     isSecondFactor,
@@ -68,15 +88,52 @@ export function useOtpVerification(): UseOtpVerificationReturn {
     try {
       setIsVerifying(true);
 
-      if (isSignUp) {
-        const completeSignUp = await signUp?.attemptVerification({
-          strategy,
-          code,
-        });
+      const verifyPromise = isSignUp
+        ? signUp.verifications[isEmailStrategy ? 'verifyEmailCode' : 'verifyPhoneCode']({ code })
+        : isSecondFactor
+          ? signIn.mfa[isEmailStrategy ? 'verifyEmailCode' : 'verifyPhoneCode']({ code })
+          : signIn[isEmailStrategy ? 'emailCode' : 'phoneCode'].verifyCode({ code });
 
-        if (completeSignUp?.status === 'complete') {
-          await setActive?.({ session: completeSignUp.createdSessionId });
-          const { sessionToken, error } = await getSessionToken({ tokenTemplate });
+      const { error: verifyError } = await verifyPromise;
+
+      if (verifyError) {
+        const isSignUpIfMissingTransfer =
+          !isSignUp &&
+          !isSecondFactor &&
+          isClerkAPIResponseError(verifyError) &&
+          verifyError.errors[0]?.code === 'sign_up_if_missing_transfer';
+
+        if (!isSignUpIfMissingTransfer) {
+          return {
+            signIn,
+            signUp,
+            error: verifyError,
+            isSuccess: false,
+          };
+        }
+
+        const { error: transferError } = await signUp.create({ transfer: true });
+
+        if (transferError) {
+          return {
+            signIn,
+            signUp,
+            error: transferError,
+            isSuccess: false,
+          };
+        }
+
+        if (signUp.status === 'complete') {
+          const { error, sessionToken } = await handleFinalize(true, tokenTemplate);
+
+          if (error) {
+            return {
+              signIn,
+              signUp,
+              error,
+              isSuccess: false,
+            };
+          }
 
           if (sessionToken) {
             return {
@@ -86,7 +143,42 @@ export function useOtpVerification(): UseOtpVerificationReturn {
               isSuccess: true,
             };
           }
+        }
 
+        return {
+          signIn,
+          signUp,
+          error: verifyError,
+          isSuccess: false,
+        };
+      }
+
+      if (isSignUp) {
+        if (signUp.status === 'complete') {
+          const { error, sessionToken } = await handleFinalize(true, tokenTemplate);
+
+          if (error) {
+            return {
+              signIn,
+              signUp,
+              error,
+              isSuccess: false,
+            };
+          }
+
+          if (sessionToken) {
+            return {
+              sessionToken,
+              signIn,
+              signUp,
+              isSuccess: true,
+            };
+          }
+        }
+      } else if (signIn.status === 'complete') {
+        const { error, sessionToken } = await handleFinalize(false, tokenTemplate);
+
+        if (error) {
           return {
             signIn,
             signUp,
@@ -94,25 +186,16 @@ export function useOtpVerification(): UseOtpVerificationReturn {
             isSuccess: false,
           };
         }
-      } else {
-        const attemptSignIn = isSecondFactor ? signIn?.attemptSecondFactor : signIn?.attemptFirstFactor;
-        const completeSignIn = await attemptSignIn?.({ strategy, code });
 
-        if (completeSignIn?.status === 'complete') {
-          await setActive?.({ session: completeSignIn.createdSessionId });
-          const { sessionToken, error } = await getSessionToken({ tokenTemplate });
-
-          if (sessionToken) {
-            return { sessionToken, signIn, signUp, isSuccess: true };
-          }
-
-          return { sessionToken: null, signIn, signUp, isSuccess: false, error };
+        if (sessionToken) {
+          return { sessionToken, signIn, signUp, isSuccess: true };
         }
       }
 
       return {
         signIn,
         signUp,
+        status: isSignUp ? undefined : signIn.status,
         isSuccess: false,
       };
     } catch (error) {

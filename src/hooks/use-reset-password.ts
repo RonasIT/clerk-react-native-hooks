@@ -1,7 +1,6 @@
+import { useSignIn } from '@clerk/expo';
 import { useState } from 'react';
 import { OtpMethod, UseResetPasswordReturn } from '../types';
-import { useClerkResources } from './use-clerk-resources';
-import { useGetSessionToken } from './use-get-session-token';
 
 /**
  * Hook that provides methods to handle password reset functionality through email or phone-based OTP.
@@ -18,27 +17,32 @@ import { useGetSessionToken } from './use-get-session-token';
  * - `isVerifying` - A boolean indicating whether a verification code is currently being processed
  */
 export function useResetPassword({ method }: { method: OtpMethod }): UseResetPasswordReturn {
-  const { signIn, setActive } = useClerkResources();
-  const { getSessionToken } = useGetSessionToken();
+  const { signIn } = useSignIn();
 
   const [isCodeSending, setIsCodeSending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  const strategy = method === 'emailAddress' ? 'reset_password_email_code' : 'reset_password_phone_code';
+  const isEmailMethod = method === 'emailAddress';
 
   const startResetPassword: UseResetPasswordReturn['startResetPassword'] = async ({ identifier }) => {
-    if (!signIn) {
-      return { isSuccess: false, signIn };
-    }
-
     setIsCodeSending(true);
 
     try {
-      await signIn.create({
-        strategy,
+      const { error } = await signIn.create({
         identifier,
       });
+
+      if (error) {
+        return { isSuccess: false, signIn, error };
+      }
+
+      const { error: sendCodeError } =
+        await signIn[isEmailMethod ? 'resetPasswordEmailCode' : 'resetPasswordPhoneCode'].sendCode();
+
+      if (sendCodeError) {
+        return { isSuccess: false, signIn, error: sendCodeError };
+      }
 
       return { isSuccess: true, signIn };
     } catch (error) {
@@ -49,17 +53,16 @@ export function useResetPassword({ method }: { method: OtpMethod }): UseResetPas
   };
 
   const verifyCode: UseResetPasswordReturn['verifyCode'] = async ({ code }) => {
-    if (!signIn) {
-      return { isSuccess: false, signIn };
-    }
-
     setIsVerifying(true);
 
     try {
-      await signIn?.attemptFirstFactor({
-        strategy,
-        code,
-      });
+      const { error: verifyCodeError } = await signIn?.[
+        isEmailMethod ? 'resetPasswordEmailCode' : 'resetPasswordPhoneCode'
+      ].verifyCode({ code });
+
+      if (verifyCodeError) {
+        return { isSuccess: false, signIn, error: verifyCodeError };
+      }
 
       return { isSuccess: true, signIn };
     } catch (error) {
@@ -70,34 +73,40 @@ export function useResetPassword({ method }: { method: OtpMethod }): UseResetPas
   };
 
   const resetPassword: UseResetPasswordReturn['resetPassword'] = async ({ password, tokenTemplate }) => {
-    if (!signIn) {
-      return { isSuccess: false, signIn };
-    }
-
     setIsResetting(true);
 
+    let sessionToken: string | null = null;
+
     try {
-      const result = await signIn.resetPassword({
+      const { error: resetPasswordError } = await signIn[
+        isEmailMethod ? 'resetPasswordEmailCode' : 'resetPasswordPhoneCode'
+      ].submitPassword({
         password,
       });
 
-      await setActive({ session: result?.createdSessionId });
-
-      const { sessionToken, error } = await getSessionToken({ tokenTemplate });
-
-      if (sessionToken) {
-        return {
-          isSuccess: true,
-          signIn,
-          sessionToken,
-        };
-      } else {
-        return {
-          signIn,
-          error,
-          isSuccess: false,
-        };
+      if (resetPasswordError) {
+        return { isSuccess: false, signIn, error: resetPasswordError };
       }
+
+      if (signIn.status === 'complete') {
+        const { error: finalizeError } = await signIn.finalize({
+          navigate: async ({ session }) => {
+            sessionToken = await session.getToken({ template: tokenTemplate });
+          },
+        });
+
+        if (finalizeError) {
+          return { isSuccess: false, signIn, error: finalizeError };
+        }
+
+        if (sessionToken) {
+          return { isSuccess: true, signIn, sessionToken };
+        }
+
+        return { isSuccess: false, signIn, error: null };
+      }
+
+      return { isSuccess: false, signIn, error: null };
     } catch (error) {
       return { isSuccess: false, signIn, error };
     } finally {

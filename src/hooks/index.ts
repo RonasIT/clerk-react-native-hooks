@@ -1,4 +1,3 @@
-export * from './use-clerk-resources';
 export * from './use-get-session-token';
 export * from './use-auth-with-sso';
 export * from './use-auth-with-ticket';
@@ -8,3 +7,4 @@ export * from './use-add-identifier';
 export * from './use-reset-password';
 export * from './use-update-password';
 export * from './use-update-identifier';
+export * from './use-clerk-resources';
