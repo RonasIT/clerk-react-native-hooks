@@ -35,7 +35,7 @@ Returns:
 
 - `startSignUp`, `startSignIn`, `isLoading`
 - For email/phone + OTP: `verifyCode`, `isVerifying` (`verifyCode` requires `code`, `isSignUp`, optional `tokenTemplate`)
-- For OTP **sign-in** only: `startSignIn` accepts optional `signUpIfMissing` (see [Clerk sign-in-or-up with `signUpIfMissing](https://clerk.com/docs/guides/development/custom-flows/authentication/sign-in-or-up#sign-in-or-up-with-sign-up-if-missing)`)
+- For OTP **sign-in** only: `startSignIn` accepts optional `signUpIfMissing` (see Clerk: [Sign-in-or-up with `signUpIfMissing`](https://clerk.com/docs/guides/development/custom-flows/authentication/sign-in-or-up#sign-in-or-up-with-sign-up-if-missing))
 
 ### Examples
 
@@ -50,6 +50,13 @@ await verifyCode({ code, isSignUp: true, tokenTemplate });
 
 await startSignIn({ identifier }); // existing user
 await verifyCode({ code, isSignUp: false, tokenTemplate });
+```
+
+```ts
+// useOtpVerification — same verify; sendOtpCode = resend
+const { verifyCode, sendOtpCode } = useOtpVerification('email_code'); // SMS: 'phone_code'
+await sendOtpCode({ isSignUp: true });
+await verifyCode({ code, isSignUp: true, tokenTemplate });
 ```
 
 `tokenTemplate` (optional) is the **name** of a [JWT template](https://clerk.com/docs/guides/sessions/jwt-templates) from the Clerk Dashboard. When set, Clerk issues a JWT built from that template so you control which claims are included. Omit it if you only need the default session token.
