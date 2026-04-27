@@ -82,7 +82,7 @@ export function useOtpVerification(strategy: OtpStrategy): UseOtpVerificationRet
   const verifyCode: UseOtpVerificationReturn['verifyCode'] = async ({
     code,
     tokenTemplate,
-    isSignUp,
+    isSignUp = false,
     isSecondFactor,
   }) => {
     try {

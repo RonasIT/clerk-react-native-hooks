@@ -176,13 +176,10 @@ export type SendOtpCodeReturn = (BaseSuccessReturn | BaseFailureReturn) & WithCl
 /** Provides functionality for sending and verifying OTP (one-time password) codes using email or phone. */
 export interface UseOtpVerificationReturn {
   /**
-   * Sends a one-time password (OTP) code to the user's identifier (email or phone number),
-   * using the selected strategy.
+   * Sends a one-time password (OTP) code to the user's identifier (email or phone number).
+   * Channel (`email_code` vs `phone_code`) is fixed by the argument passed to `useOtpVerification`.
    *
-   * @param strategy - The delivery method for the OTP code.
-   * - `'email_code'` – send code via email
-   * - `'phone_code'` – send code via SMS
-   * @param isSignUp - Indicates whether the OTP flow is used for sign-up (true) or sign-in (false)
+   * @param isSignUp - (Optional) Indicates whether the OTP flow is used for sign-up (true) or sign-in (false)
    * @param isSecondFactor - (Optional) Indicates whether the OTP flow is used for a second factor verification (true) or not (false)
    *
    * @returns A Promise resolving to success with optional `signIn` / `signUp`, or failure with `error` and the same optional resources.
@@ -194,9 +191,9 @@ export interface UseOtpVerificationReturn {
    *
    * @param params - Parameters required to verify the code.
    * @param params.code - The OTP code received by the user.
-   * @param params.strategy - The strategy used to send the code (`'email_code'` or `'phone_code'`).
+   * @param params.isSignUp - Pass `true` for sign-up; omit (or `false`) for sign-in. Defaults to `false` (sign-in / signUpIfMissing transfer path).
    * @param params.tokenTemplate - (Optional) The name of the token template to use when retrieving the session token.
-   * @param isSignUp - Indicates whether the OTP flow is used for sign-up (true) or sign-in (false)
+   * @param isSignUp - (Optional) Indicates whether the OTP flow is used for sign-up (true) or sign-in (false)
    * @param isSecondFactor - (Optional) Indicates whether the OTP flow is used for a second factor verification (true) or not (false)
    *
    * @returns A Promise that resolves to:
@@ -205,7 +202,7 @@ export interface UseOtpVerificationReturn {
    */
   verifyCode: (params: {
     code: string;
-    isSignUp: boolean;
+    isSignUp?: boolean;
     tokenTemplate?: string;
     isSecondFactor?: boolean;
   }) => Promise<AuthorizationFinishedReturn>;
@@ -477,7 +474,7 @@ type ConditionalUseAuthWithIdentifierReturn<
        * Only available when using `emailAddress` or `phoneNumber`.
        *
        * @param params.code - The one-time code entered by the user.
-       * @param params.isSignUp - Whether the flow is sign-up (true) or sign-in (false).
+       * @param params.isSignUp - (Optional)  Whether the flow is sign-up (true) or sign-in (false).
        * @param params.tokenTemplate - (Optional) Token template to customize the session.
        * @returns A Promise resolving to the final result of the authorization flow.
        */
