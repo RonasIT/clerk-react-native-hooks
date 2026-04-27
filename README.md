@@ -223,7 +223,7 @@ const signInWithBackendTicket = async () => {
 
 ### `useAddIdentifier`
 
-Link an extra **email** or **phone** to the **signed-in** user. `createIdentifier` attaches the value (or resumes verification if it already exists) and sends a one-time code; `verifyCode` confirms with the **same** `identifier` string.
+Link an extra **email** or **phone** to the **signed-in** user. `createIdentifier` attaches the value (or resumes verification if it already exists) and sends a one-time code; `verifyCode` confirms with the **same** `identifier` string. To **resend** the code, call `createIdentifier` again with the **same** `identifier` (there is no separate resend method).
 
 - `type` — `'email'` or `'phone'`
 - `createIdentifier` — `{ identifier }`
@@ -258,9 +258,18 @@ const onSubmitCode = async (code: string, email: string) => {
 };
 ```
 
+```ts
+// Resend — same as the first send: createIdentifier({ identifier }) again
+const { createIdentifier, isCreating } = useAddIdentifier('email');
+
+const onResendCode = async (email: string) => {
+  await createIdentifier({ identifier: email });
+};
+```
+
 ### `useUpdateIdentifier`
 
-For a **signed-in** user who is **changing** their primary email or phone: `createIdentifier` adds the new address and sends a verification code; after `verifyCode` succeeds, that identifier becomes **primary** and the previous primary is **removed**.
+For a **signed-in** user who is **changing** their primary email or phone: `createIdentifier` adds the new address and sends a verification code; after `verifyCode` succeeds, that identifier becomes **primary** and the previous primary is **removed**. To **resend** the code, call `createIdentifier` again with the **same** new `identifier`.
 
 - `type` — `'email'` or `'phone'`
 - `createIdentifier` — `{ identifier }`
@@ -292,6 +301,15 @@ const onSubmitCode = async (code: string, newEmail: string) => {
   if (isSuccess) {
     // handle success
   }
+};
+```
+
+```ts
+// Resend — same as the first send: createIdentifier({ identifier }) again
+const { createIdentifier, isCreating } = useUpdateIdentifier('email');
+
+const onResendCode = async (newEmail: string) => {
+  await createIdentifier({ identifier: newEmail });
 };
 ```
 
@@ -335,9 +353,9 @@ For SMS, use `useOtpVerification('phone_code')`. For sign-in OTP, omit `isSignUp
 
 Password reset via email or phone OTP for the forgot-password flow.
 
-Use the same `method` (`'emailAddress'` or `'phoneNumber'`) on `useResetPassword` for each step.
+Use the same `method` (`'emailAddress'` or `'phoneNumber'`) on `useResetPassword` for each step. To **resend** the reset code, call `startResetPassword` again with the **same** `identifier`.
 
-1. `startResetPassword({ identifier })` — sends the reset code (`isCodeSending`); repeat to resend.
+1. `startResetPassword({ identifier })` — sends the reset code (`isCodeSending`); use the same call again to resend.
 2. `verifyCode({ code })` — verifies the code (`isVerifying`).
 3. `resetPassword({ password, tokenTemplate? })` — applies the new password and finishes sign-in (`isResetting`).
 
@@ -354,15 +372,20 @@ const onRequestCode = async (email: string) => {
 ```
 
 ```ts
-// 2 — submit code (and optional resend)
-const { verifyCode, isVerifying, startResetPassword } = useResetPassword({ method: 'emailAddress' });
+// 2 — submit code
+const { verifyCode, isVerifying } = useResetPassword({ method: 'emailAddress' });
 
-const onSubmitCode = async (code: string, email: string) => {
+const onSubmitCode = async (code: string) => {
   const { isSuccess, error } = await verifyCode({ code });
   // if isSuccess → go to new-password step
 };
+```
 
-const sendOrResendCode = (email: string) => {
+```ts
+// Resend — same as step 1: startResetPassword({ identifier }) again
+const { startResetPassword, isCodeSending } = useResetPassword({ method: 'emailAddress' });
+
+const onResendCode = (email: string) => {
   startResetPassword({ identifier: email });
 };
 ```
