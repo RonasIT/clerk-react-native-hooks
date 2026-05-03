@@ -1,6 +1,6 @@
 {
   "name": "@ronas-it/clerk-react-native-hooks",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Hooks and helpers for Clerk authentication in React Native / Expo apps",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
