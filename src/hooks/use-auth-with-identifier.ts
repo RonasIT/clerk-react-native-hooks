@@ -174,11 +174,11 @@ export function useAuthWithIdentifier<
 
   const verifyCode = async ({
     code,
-    isSignUp,
+    isSignUp = false,
     tokenTemplate,
   }: {
     code: string;
-    isSignUp: boolean;
+    isSignUp?: boolean;
     tokenTemplate?: string;
   }): Promise<AuthorizationFinishedReturn> => {
     setIsLoading(true);
