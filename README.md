@@ -139,7 +139,7 @@ const onSignIn = async (values: { emailAddress: string; password: string }) => {
 
 #### Single entry: one email/phone field, then OTP (sign-in or sign-up):
 
-Use this when **sign-in** and **sign-up** share one identifier (email or phone). Prefer Clerk’s **signUpIfMissing** flow so verification runs even if the account does not exist yet. See Clerk: [Sign-in-or-up with signUpIfMissing](https://clerk.com/docs/guides/development/custom-flows/authentication/sign-in-or-up#sign-in-or-up-with-sign-up-if-missing).
+Use this when **sign-in** and **sign-up** share one identifier (email or phone). Prefer Clerk’s **signUpIfMissing** flow so verification runs even if the account does not exist yet. See Clerk: [Sign-in-or-up with `signUpIfMissing`](https://clerk.com/docs/guides/development/custom-flows/authentication/sign-in-or-up#sign-in-or-up-with-sign-up-if-missing).
 
 ```ts
 // First screen — treat as sign-in with signUpIfMissing; OTP is sent on success
